@@ -5,7 +5,11 @@
 This is a fix for BERSERK: Band of the Hawk that adds ultrawide/narrower support.
 
 ## Features
-- Support for any resolution/aspect ratio.
+- Custom resolution support.
+- Support for any aspect ratio.
+- Fixed HUD stretching.
+- Fixed movie stretching.
+- Removes Windows 7 compatibility nag message.
 
 ## Installation
 - Grab the latest release of BerserkFix from [here.](https://github.com/Lyall/BerserkFix/releases)
