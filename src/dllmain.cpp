@@ -45,7 +45,7 @@ float fHUDHeightOffset;
 // Variables
 int iCurrentResX;
 int iCurrentResY;
-LPCWSTR sWindowClassName = L"METAPHOR_WINDOW";
+LPCSTR sWindowClassName = "BERSERK_WIN_EU_NA";
 
 void CalculateAspectRatio(bool bLog)
 {
