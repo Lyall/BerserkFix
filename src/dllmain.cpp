@@ -29,6 +29,8 @@ std::pair DesktopDimensions = { 0,0 };
 bool bCustomRes;
 int iCustomResX = 1280;
 int iCustomResY = 720;
+bool bFixAspect;
+bool bFixHUD;
 
 // Aspect ratio + HUD stuff
 float fPi = (float)3.141592653;
@@ -196,6 +198,12 @@ void Configuration()
     spdlog::info("Config Parse: iCustomResX: {}", iCustomResX);
     spdlog::info("Config Parse: iCustomResY: {}", iCustomResY);
 
+    inipp::get_value(ini.sections["Fix Aspect Ratio"], "Enabled", bFixAspect);
+    spdlog::info("Config Parse: bFixAspect: {}", bFixAspect);
+
+    inipp::get_value(ini.sections["Fix HUD"], "Enabled", bFixHUD);
+    spdlog::info("Config Parse: bFixHUD: {}", bFixHUD);
+
     spdlog::info("----------");
 
     // Grab desktop resolution
@@ -259,87 +267,90 @@ void Resolution()
 
 void AspectFOV()
 {
-    // Aspect ratio
-    uint8_t* AspectRatioScanResult = Memory::PatternScan(baseModule, "F3 0F ?? ?? ?? ?? ?? ?? F3 0F ?? ?? ?? ?? ?? ?? 89 ?? ?? ?? ?? ?? 0F ?? ?? ?? ?? ?? ?? 74 ??");
-    if (AspectRatioScanResult) {
-        spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)AspectRatioScanResult - (uintptr_t)baseModule);
+    if (bFixAspect) {
+        // Aspect ratio
+        uint8_t* AspectRatioScanResult = Memory::PatternScan(baseModule, "F3 0F ?? ?? ?? ?? ?? ?? F3 0F ?? ?? ?? ?? ?? ?? 89 ?? ?? ?? ?? ?? 0F ?? ?? ?? ?? ?? ?? 74 ??");
+        if (AspectRatioScanResult) {
+            spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)AspectRatioScanResult - (uintptr_t)baseModule);
 
-        static SafetyHookMid AspectRatioMidHook{};
-        AspectRatioMidHook = safetyhook::create_mid(AspectRatioScanResult,
-            [](SafetyHookContext& ctx) {
-                if (ctx.rbx + 0x1B0) {
-                    *reinterpret_cast<float*>(ctx.rbx + 0x1B0) = fAspectRatio;
-                }
-            });
-    }
-    else if (!AspectRatioScanResult) {
-        spdlog::error("Aspect Ratio: Pattern scan failed.");
-    }
+            static SafetyHookMid AspectRatioMidHook{};
+            AspectRatioMidHook = safetyhook::create_mid(AspectRatioScanResult,
+                [](SafetyHookContext& ctx) {
+                    if (ctx.rbx + 0x1B0) {
+                        *reinterpret_cast<float*>(ctx.rbx + 0x1B0) = fAspectRatio;
+                    }
+                });
+        }
+        else if (!AspectRatioScanResult) {
+            spdlog::error("Aspect Ratio: Pattern scan failed.");
+        }
 
-    // Menu Aspect Ratio
-    uint8_t* MenuAspectRatioScanResult = Memory::PatternScan(baseModule, "F3 0F ?? ?? ?? ?? ?? ?? 48 ?? ?? ?? ?? ?? ?? 4C ?? ?? ?? ?? ?? ?? 48 ?? ?? ?? ?? ?? ?? F3 0F ?? ?? ?? ?? ?? ??");
-    if (MenuAspectRatioScanResult) {
-        spdlog::info("Menu Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)MenuAspectRatioScanResult - (uintptr_t)baseModule);
+        // Menu Aspect Ratio
+        uint8_t* MenuAspectRatioScanResult = Memory::PatternScan(baseModule, "F3 0F ?? ?? ?? ?? ?? ?? 48 ?? ?? ?? ?? ?? ?? 4C ?? ?? ?? ?? ?? ?? 48 ?? ?? ?? ?? ?? ?? F3 0F ?? ?? ?? ?? ?? ??");
+        if (MenuAspectRatioScanResult) {
+            spdlog::info("Menu Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)MenuAspectRatioScanResult - (uintptr_t)baseModule);
 
-        static SafetyHookMid AspectRatioMidHook{};
-        AspectRatioMidHook = safetyhook::create_mid(MenuAspectRatioScanResult,
-            [](SafetyHookContext& ctx) {
-                ctx.xmm0.f32[0] = fAspectRatio;
-            });
+            static SafetyHookMid AspectRatioMidHook{};
+            AspectRatioMidHook = safetyhook::create_mid(MenuAspectRatioScanResult,
+                [](SafetyHookContext& ctx) {
+                    ctx.xmm0.f32[0] = fAspectRatio;
+                });
+        }
+        else if (!MenuAspectRatioScanResult) {
+            spdlog::error("Menu Aspect Ratio: Pattern scan failed.");
+        }
     }
-    else if (!MenuAspectRatioScanResult) {
-        spdlog::error("Menu Aspect Ratio: Pattern scan failed.");
-    }
-
 }
 
 void HUD()
 {
-    // HUD Size
-    uint8_t* HUDSizeScanResult = Memory::PatternScan(baseModule, "F3 0F ?? ?? ?? ?? ?? ?? F3 0F ?? ?? ?? ?? F3 0F ?? ?? ?? ?? 8B ?? ?? ?? 89 ?? ??");
-    if (HUDSizeScanResult) {
-        spdlog::info("HUD: Size: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)HUDSizeScanResult - (uintptr_t)baseModule);
+    if (bFixHUD) {
+        // HUD Size
+        uint8_t* HUDSizeScanResult = Memory::PatternScan(baseModule, "F3 0F ?? ?? ?? ?? ?? ?? F3 0F ?? ?? ?? ?? F3 0F ?? ?? ?? ?? 8B ?? ?? ?? 89 ?? ??");
+        if (HUDSizeScanResult) {
+            spdlog::info("HUD: Size: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)HUDSizeScanResult - (uintptr_t)baseModule);
 
-        static SafetyHookMid HUDWidthMidHook{};
-        HUDWidthMidHook = safetyhook::create_mid(HUDSizeScanResult,
-            [](SafetyHookContext& ctx) {
-                if (fAspectRatio > fNativeAspect)
-                    ctx.xmm0.f32[0] = fHUDWidth;
-            });
+            static SafetyHookMid HUDWidthMidHook{};
+            HUDWidthMidHook = safetyhook::create_mid(HUDSizeScanResult,
+                [](SafetyHookContext& ctx) {
+                    if (fAspectRatio > fNativeAspect)
+                        ctx.xmm0.f32[0] = fHUDWidth;
+                });
 
-        static SafetyHookMid HUDHeightMidHook{};
-        HUDHeightMidHook = safetyhook::create_mid(HUDSizeScanResult - 0x23,
-            [](SafetyHookContext& ctx) {
-                if (fAspectRatio < fNativeAspect)
-                    ctx.xmm1.f32[0] = fHUDHeight;
-            });
-    }
-    else if (!HUDSizeScanResult) {
-        spdlog::error("HUD: Size: Pattern scan failed.");
-    }
+            static SafetyHookMid HUDHeightMidHook{};
+            HUDHeightMidHook = safetyhook::create_mid(HUDSizeScanResult - 0x23,
+                [](SafetyHookContext& ctx) {
+                    if (fAspectRatio < fNativeAspect)
+                        ctx.xmm1.f32[0] = fHUDHeight;
+                });
+        }
+        else if (!HUDSizeScanResult) {
+            spdlog::error("HUD: Size: Pattern scan failed.");
+        }
 
-    // HUD Offset
-    uint8_t* HUDOffsetScanResult = Memory::PatternScan(baseModule, "F3 0F ?? ?? ?? F3 0F ?? ?? ?? ?? ?? ?? F3 0F ?? ?? ?? ?? F3 0F ?? ?? ?? ?? F3 0F ?? ?? ?? ?? 0F ?? ?? ?? 42 ?? ?? ?? ??");
-    if (HUDOffsetScanResult) {
-        spdlog::info("HUD: Size: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)HUDOffsetScanResult - (uintptr_t)baseModule);
+        // HUD Offset
+        uint8_t* HUDOffsetScanResult = Memory::PatternScan(baseModule, "F3 0F ?? ?? ?? F3 0F ?? ?? ?? ?? ?? ?? F3 0F ?? ?? ?? ?? F3 0F ?? ?? ?? ?? F3 0F ?? ?? ?? ?? 0F ?? ?? ?? 42 ?? ?? ?? ??");
+        if (HUDOffsetScanResult) {
+            spdlog::info("HUD: Size: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)HUDOffsetScanResult - (uintptr_t)baseModule);
 
-        static SafetyHookMid HUDWidthOffsetMidHook{};
-        HUDWidthOffsetMidHook = safetyhook::create_mid(HUDOffsetScanResult,
-            [](SafetyHookContext& ctx) {
-                if (fAspectRatio > fNativeAspect)
-                    ctx.xmm0.f32[0] = -(fNativeAspect / fAspectRatio);
-            });
+            static SafetyHookMid HUDWidthOffsetMidHook{};
+            HUDWidthOffsetMidHook = safetyhook::create_mid(HUDOffsetScanResult,
+                [](SafetyHookContext& ctx) {
+                    if (fAspectRatio > fNativeAspect)
+                        ctx.xmm0.f32[0] = -(fNativeAspect / fAspectRatio);
+                });
 
-        static SafetyHookMid HUDHeightOffsetMidHook{};
-        HUDHeightOffsetMidHook = safetyhook::create_mid(HUDOffsetScanResult - 0xF,
-            [](SafetyHookContext& ctx) {
-                if (fAspectRatio < fNativeAspect)
-                    ctx.xmm0.f32[0] = fHUDHeight;
-            });
-    }
-    else if (!HUDOffsetScanResult) {
-        spdlog::error("HUD: Size: Pattern scan failed.");
-    }
+            static SafetyHookMid HUDHeightOffsetMidHook{};
+            HUDHeightOffsetMidHook = safetyhook::create_mid(HUDOffsetScanResult - 0xF,
+                [](SafetyHookContext& ctx) {
+                    if (fAspectRatio < fNativeAspect)
+                        ctx.xmm0.f32[0] = fHUDHeight;
+                });
+        }
+        else if (!HUDOffsetScanResult) {
+            spdlog::error("HUD: Size: Pattern scan failed.");
+        }
+    }   
 }
 
 DWORD __stdcall Main(void*)
