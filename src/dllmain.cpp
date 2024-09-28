@@ -353,6 +353,24 @@ void HUD()
     }   
 }
 
+void Misc()
+{
+    // Disable Windows 7 compatibility message on startup
+    uint8_t* WindowsCompatibilityMessageScanResult = Memory::PatternScan(baseModule, "85 ?? 0F 84 ?? ?? ?? ?? 83 3D ?? ?? ?? ?? 00 75 ?? 48 ?? ?? ?? ?? ?? ?? 33 ?? ");
+    if (WindowsCompatibilityMessageScanResult) {
+        spdlog::info("Windows Compatibility Message: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)WindowsCompatibilityMessageScanResult - (uintptr_t)baseModule);
+
+        static SafetyHookMid WinCompCheckMidHook{};
+        WinCompCheckMidHook = safetyhook::create_mid(WindowsCompatibilityMessageScanResult,
+            [](SafetyHookContext& ctx) {
+                ctx.rax = 0;
+            });
+    }
+    else if (!WindowsCompatibilityMessageScanResult) {
+        spdlog::error("Windows Compatibility Message: Pattern scan failed.");
+    }
+}
+
 DWORD __stdcall Main(void*)
 {
     Logging();
@@ -360,6 +378,7 @@ DWORD __stdcall Main(void*)
     Resolution();
     AspectFOV();
     HUD();
+    Misc();
     return true;
 }
 
