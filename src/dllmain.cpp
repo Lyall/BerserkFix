@@ -329,8 +329,13 @@ void HUD()
         }
 
         // HUD Offset
+        uint8_t* HUDOffsetCodepathScanResult = Memory::PatternScan(baseModule, "7A ?? 75 ?? F3 0F ?? ?? ?? ?? ?? ?? 0F ?? ?? 7A ?? 74 ?? 48 ?? ?? ?? ?? ?? ?? 00 74 ??");
         uint8_t* HUDOffsetScanResult = Memory::PatternScan(baseModule, "F3 0F ?? ?? ?? F3 0F ?? ?? ?? ?? ?? ?? F3 0F ?? ?? ?? ?? F3 0F ?? ?? ?? ?? F3 0F ?? ?? ?? ?? 0F ?? ?? ?? 42 ?? ?? ?? ??");
-        if (HUDOffsetScanResult) {
+        if (HUDOffsetCodepathScanResult && HUDOffsetScanResult) {
+            spdlog::info("HUD: Offset: Codepath address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)HUDOffsetCodepathScanResult - (uintptr_t)baseModule);
+            Memory::PatchBytes((uintptr_t)HUDOffsetCodepathScanResult, "\xEB", 1);
+            spdlog::info("HUD: Offset: Patched instruction.");
+
             spdlog::info("HUD: Offset: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)HUDOffsetScanResult - (uintptr_t)baseModule);
 
             static SafetyHookMid HUDWidthOffsetMidHook{};
@@ -341,13 +346,13 @@ void HUD()
                 });
 
             static SafetyHookMid HUDHeightOffsetMidHook{};
-            HUDHeightOffsetMidHook = safetyhook::create_mid(HUDOffsetScanResult - 0xF,
+            HUDHeightOffsetMidHook = safetyhook::create_mid(HUDOffsetScanResult + 0xD,
                 [](SafetyHookContext& ctx) {
                     if (fAspectRatio < fNativeAspect)
-                        ctx.xmm0.f32[0] = fHUDHeight;
+                        ctx.xmm1.f32[0] = fAspectMultiplier;
                 });
         }
-        else if (!HUDOffsetScanResult) {
+        else if (!HUDOffsetCodepathScanResult || !HUDOffsetScanResult) {
             spdlog::error("HUD: Offset: Pattern scan failed.");
         }
 
