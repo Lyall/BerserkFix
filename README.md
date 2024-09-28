@@ -2,10 +2,14 @@
 [![Patreon-Button](https://github.com/user-attachments/assets/56f4da45-0ed0-4210-a4a7-c381612370db)](https://www.patreon.com/Wintermance) [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/W7W01UAI9) <br />
 [![Github All Releases](https://img.shields.io/github/downloads/Lyall/BerserkFix/total.svg)](https://github.com/Lyall/BerserkFix/releases)
 
-This is a fix for BERSERK: Band of the Hawk that adds ultrawide/narrower support.
+This is a fix for BERSERK: Band of the Hawk that adds ultrawide/narrower support and more.
 
 ## Features
-- Support for any resolution/aspect ratio.
+- Custom resolution support.
+- Support for any aspect ratio.
+- Fixed HUD stretching.
+- Fixed movie stretching.
+- Removes Windows 7 compatibility nag message.
 
 ## Installation
 - Grab the latest release of BerserkFix from [here.](https://github.com/Lyall/BerserkFix/releases)
