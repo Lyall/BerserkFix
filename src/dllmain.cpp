@@ -331,7 +331,7 @@ void HUD()
         // HUD Offset
         uint8_t* HUDOffsetScanResult = Memory::PatternScan(baseModule, "F3 0F ?? ?? ?? F3 0F ?? ?? ?? ?? ?? ?? F3 0F ?? ?? ?? ?? F3 0F ?? ?? ?? ?? F3 0F ?? ?? ?? ?? 0F ?? ?? ?? 42 ?? ?? ?? ??");
         if (HUDOffsetScanResult) {
-            spdlog::info("HUD: Size: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)HUDOffsetScanResult - (uintptr_t)baseModule);
+            spdlog::info("HUD: Offset: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)HUDOffsetScanResult - (uintptr_t)baseModule);
 
             static SafetyHookMid HUDWidthOffsetMidHook{};
             HUDWidthOffsetMidHook = safetyhook::create_mid(HUDOffsetScanResult,
@@ -348,7 +348,30 @@ void HUD()
                 });
         }
         else if (!HUDOffsetScanResult) {
-            spdlog::error("HUD: Size: Pattern scan failed.");
+            spdlog::error("HUD: Offset: Pattern scan failed.");
+        }
+
+        // Movies
+        uint8_t* MoviesScanResult = Memory::PatternScan(baseModule, "F3 0F ?? ?? ?? F3 0F ?? ?? ?? ?? ?? ?? 48 ?? ?? ?? 00 00 00 00 0F ?? ??");
+        if (MoviesScanResult) {
+            spdlog::info("HUD: Movies: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)MoviesScanResult - (uintptr_t)baseModule);
+
+            static SafetyHookMid MovieWidthMidHook{};
+            MovieWidthMidHook = safetyhook::create_mid(MoviesScanResult,
+                [](SafetyHookContext& ctx) {
+                    if (fAspectRatio > fNativeAspect)
+                        ctx.xmm0.f32[0] = fHUDWidth;
+                });
+
+            static SafetyHookMid MovieHeightMidHook{};
+            MovieHeightMidHook = safetyhook::create_mid(MoviesScanResult + 0x18,
+                [](SafetyHookContext& ctx) {
+                    if (fAspectRatio < fNativeAspect)
+                        ctx.xmm1.f32[0] = fHUDHeight;
+                });
+        }
+        else if (!MoviesScanResult) {
+            spdlog::error("HUD: Movies: Pattern scan failed.");
         }
     }   
 }
