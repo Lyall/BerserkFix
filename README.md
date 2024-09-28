@@ -1,12 +1,11 @@
 # BERSERK: Band of the Hawk Fix
-[](https://www.patreon.com/Wintermance) [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/W7W01UAI9) <br />
+[![Patreon-Button](https://github.com/user-attachments/assets/56f4da45-0ed0-4210-a4a7-c381612370db)](https://www.patreon.com/Wintermance) [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/W7W01UAI9) <br />
 [![Github All Releases](https://img.shields.io/github/downloads/Lyall/BerserkFix/total.svg)](https://github.com/Lyall/BerserkFix/releases)
 
 This is a fix for BERSERK: Band of the Hawk that adds ultrawide/narrower support.
 
 ## Features
 - Support for any resolution/aspect ratio.
-- Correctly scaled movies.
 
 ## Installation
 - Grab the latest release of BerserkFix from [here.](https://github.com/Lyall/BerserkFix/releases)
@@ -24,7 +23,7 @@ Please report any issues you see.
 This list will contain bugs which may or may not be fixed.
 
 ## Screenshots
-|  |
+| ![ezgif-4-c1525c200a](https://github.com/user-attachments/assets/57ad687c-28d1-445e-8176-c37f0b3175b5) |
 |:--:|
 | Gameplay |
 
