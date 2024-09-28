@@ -304,6 +304,11 @@ void AspectFOV()
 
 void HUD()
 {
+    // TODO: HUD BUGS
+    // Some movies show visual errors?
+    // Notable enemy names are stretched.
+    // Main menu logo + firey selection effects are stretched.
+
     if (bFixHUD) {
         // HUD Size
         uint8_t* HUDSizeScanResult = Memory::PatternScan(baseModule, "F3 0F ?? ?? ?? ?? ?? ?? F3 0F ?? ?? ?? ?? F3 0F ?? ?? ?? ?? 8B ?? ?? ?? 89 ?? ??");
