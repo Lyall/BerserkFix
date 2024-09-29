@@ -11,7 +11,7 @@ HMODULE thisModule; // Fix DLL
 
 // Version
 std::string sFixName = "BerserkFix";
-std::string sFixVer = "0.0.2";
+std::string sFixVer = "0.0.3";
 std::string sLogFile = sFixName + ".log";
 
 // Logger
