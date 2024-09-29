@@ -486,13 +486,13 @@ void HUD()
             spdlog::error("HUD: Menu Backgrounds: Pattern scan failed.");
         }
 
-
         // HUD Backgrounds
         uint8_t* HUDBackgrounds1ScanResult = Memory::PatternScan(baseModule, "8B ?? 89 ?? ?? 48 8B ?? ?? 48 89 ?? ?? 48 89 ?? ?? 48 89 ?? ??");
         uint8_t* HUDBackgrounds2ScanResult = Memory::PatternScan(baseModule, "45 ?? ?? 0F 84 ?? ?? ?? ?? 48 ?? ?? E8 ?? ?? ?? ?? 33 ?? 83 ?? ?? ?? ?? ?? 03");
         uint8_t* HUDBackgrounds3ScanResult = Memory::PatternScan(baseModule, "48 8B ?? ?? 48 89 ?? ?? 48 89 ?? ?? 48 89 ?? ?? 83 ?? ?? ?? ?? ?? 00 74 ??");
         uint8_t* HUDBackgrounds4ScanResult = Memory::PatternScan(baseModule, "48 ?? ?? ?? 89 ?? ?? 44 0F ?? ?? ?? ?? 48 ?? ?? ?? 48 ?? ?? ?? 48 ?? ?? ?? 48 ?? ?? ??");
-        if (HUDBackgrounds1ScanResult && HUDBackgrounds2ScanResult && HUDBackgrounds3ScanResult && HUDBackgrounds4ScanResult) {
+        uint8_t* HUDBackgrounds5ScanResult = Memory::PatternScan(baseModule, "F3 0F ?? ?? ?? ?? 85 ?? 74 ?? FF ?? 74 ?? FF ?? 75 ??");
+        if (HUDBackgrounds1ScanResult && HUDBackgrounds2ScanResult && HUDBackgrounds3ScanResult && HUDBackgrounds4ScanResult && HUDBackgrounds5ScanResult) {
             spdlog::info("HUD: Backgrounds: Other 1: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)HUDBackgrounds1ScanResult - (uintptr_t)baseModule);
             static SafetyHookMid HUDBackgrounds1MidHook{};
             HUDBackgrounds1MidHook = safetyhook::create_mid(HUDBackgrounds1ScanResult,
@@ -564,8 +564,26 @@ void HUD()
                         }
                     }
                 });
+
+            spdlog::info("HUD: Backgrounds: Other 5: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)HUDBackgrounds5ScanResult - (uintptr_t)baseModule);
+            static SafetyHookMid HUDBackgrounds5MidHook{};
+            HUDBackgrounds5MidHook = safetyhook::create_mid(HUDBackgrounds5ScanResult,
+                [](SafetyHookContext& ctx) {
+                    if (ctx.rsp + 0x30) {
+                        if (fAspectRatio > fNativeAspect) {
+                            float fWidthOffset = ((1080.00f * fAspectRatio) - 1920.00f) / 2.00f;
+                            *reinterpret_cast<float*>(ctx.rsp + 0x38) = 1080.00f * fAspectRatio;
+                            *reinterpret_cast<float*>(ctx.rsp + 0x30) = -fWidthOffset;
+                        }
+                        else if (fAspectRatio < fNativeAspect) {
+                            float fHeightOffset = ((1920.00f / fAspectRatio) - 1080.00f) / 2.00f;
+                            *reinterpret_cast<float*>(ctx.rsp + 0x3C) = 1920.00f / fAspectRatio;
+                            *reinterpret_cast<float*>(ctx.rsp + 0x34) = -fHeightOffset;
+                        }
+                    }
+                });
         }
-        else if (!HUDBackgrounds1ScanResult || !HUDBackgrounds2ScanResult || !HUDBackgrounds3ScanResult || HUDBackgrounds4ScanResult) {
+        else if (!HUDBackgrounds1ScanResult || !HUDBackgrounds2ScanResult || !HUDBackgrounds3ScanResult || !HUDBackgrounds4ScanResult || !HUDBackgrounds5ScanResult) {
             spdlog::error("HUD: Backgrounds: Pattern scan failed.");
         }
     }   
@@ -617,6 +635,7 @@ void Framerate()
         }
 
         // Input Speed
+        // TODO: Keyboard input rate?
         uint8_t* ControllerInputSpeedScanResult = Memory::PatternScan(baseModule, "41 0F ?? ?? 41 ?? ?? 41 ?? ?? 3C ?? 72 ?? 8B ?? 09 ?? ??");
         if (ControllerInputSpeedScanResult) {
             spdlog::info("Framerate: Input Speed: Controller: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)ControllerInputSpeedScanResult - (uintptr_t)baseModule);
