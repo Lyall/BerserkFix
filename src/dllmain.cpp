@@ -46,6 +46,7 @@ float fHUDHeightOffset;
 // Variables
 int iCurrentResX;
 int iCurrentResY;
+float fCurrentFrametime = 0.0166666f;
 LPCSTR sWindowClassName = "BERSERK_WIN_EU_NA";
 
 void CalculateAspectRatio(bool bLog)
@@ -587,6 +588,7 @@ void Framerate()
             spdlog::error("Framerate: Cap: Pattern scan failed.");
         }
 
+        // Game Speed
         uint8_t* GameSpeedScanResult = Memory::PatternScan(baseModule, "0F ?? ?? F3 0F ?? ?? F3 0F ?? ?? 0F ?? ?? F3 0F ?? ?? ?? ?? ?? ?? 66 0F ?? ?? ?? ?? ?? ?? 66 0F ?? ?? 0F ?? ?? 72 ??");
         if (GameSpeedScanResult) {
             spdlog::info("Framerate: Game Speed: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)GameSpeedScanResult - (uintptr_t)baseModule);
@@ -598,6 +600,47 @@ void Framerate()
         }
         else if (!GameSpeedScanResult) {
             spdlog::error("Framerate: Game Speed: Pattern scan failed.");
+        }
+
+        // Get current frametime
+        uint8_t* CurrentFrametimeScanResult = Memory::PatternScan(baseModule, "66 0F ?? ?? ?? ?? ?? ?? 66 0F ?? ?? 0F ?? ?? 72 ?? F3 0F ?? ?? ??");
+        if (CurrentFrametimeScanResult) {
+            spdlog::info("Framerate: Frametime: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)CurrentFrametimeScanResult - (uintptr_t)baseModule);
+            static SafetyHookMid CurrentFrametimeMidHook{};
+            CurrentFrametimeMidHook = safetyhook::create_mid(CurrentFrametimeScanResult,
+                [](SafetyHookContext& ctx) {
+                    fCurrentFrametime = ctx.xmm4.f32[0];
+                });
+        }
+        else if (!CurrentFrametimeScanResult) {
+            spdlog::error("Framerate: Frametime: Pattern scan failed.");
+        }
+
+        // Input Speed
+        uint8_t* ControllerInputSpeedScanResult = Memory::PatternScan(baseModule, "41 0F ?? ?? 41 ?? ?? 41 ?? ?? 3C ?? 72 ?? 8B ?? 09 ?? ??");
+        if (ControllerInputSpeedScanResult) {
+            spdlog::info("Framerate: Input Speed: Controller: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)ControllerInputSpeedScanResult - (uintptr_t)baseModule);
+            static SafetyHookMid ControllerInputSpeedMidHook{};
+            ControllerInputSpeedMidHook = safetyhook::create_mid(ControllerInputSpeedScanResult + 0xC,
+                [](SafetyHookContext& ctx) {
+                    // Get current frame count
+                    int iCurrentFrameCount = (int)ctx.rax;
+
+                    // Get current framerate
+                    int iCurrentFramerate = (static_cast<int>(1.00f / fCurrentFrametime));
+
+                    // Calculate target by assuming it is 60fps
+                    int iTarget = static_cast<int>(20.00f * ((float)iCurrentFramerate / 60.00f));
+
+                    // Check if current frame count exceeds the target
+                    if (iCurrentFrameCount < iTarget)
+                        ctx.rflags |= (1 << 0);     // Set CF
+                    else
+                        ctx.rflags &= ~(1 << 0);    // Clear CF
+                });
+        }
+        else if (!ControllerInputSpeedScanResult) {
+            spdlog::error("Framerate: Input Speed: Pattern scan failed.");
         }
     }
 }
