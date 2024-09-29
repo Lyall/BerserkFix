@@ -31,6 +31,7 @@ This is a fix for BERSERK: Band of the Hawk that adds ultrawide/narrower support
 Please report any issues you see.
 This list will contain bugs which may or may not be fixed.
 
+- Some movies may show visual glitches near the beginning.
 - Enemy nameplates are stretched at non-16:9 resolutions.
 - Adjusting the framerate cap can cause bugs. Some UI speeds up, for example.
 
