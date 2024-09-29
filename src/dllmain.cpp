@@ -623,17 +623,17 @@ void Framerate()
             static SafetyHookMid ControllerInputSpeedMidHook{};
             ControllerInputSpeedMidHook = safetyhook::create_mid(ControllerInputSpeedScanResult + 0xC,
                 [](SafetyHookContext& ctx) {
-                    // Get current frame count
-                    int iCurrentFrameCount = (int)ctx.rax;
+                    // Get current count
+                    int iCurrentCount = (int)ctx.rax;
 
                     // Get current framerate
-                    int iCurrentFramerate = (static_cast<int>(1.00f / fCurrentFrametime));
+                    int iCurrentFramerate = static_cast<int>(1.00f / fCurrentFrametime);
 
-                    // Calculate target by assuming it is 60fps
+                    // Calculate new target count by assuming it is 20 for 60fps
                     int iTarget = static_cast<int>(20.00f * ((float)iCurrentFramerate / 60.00f));
 
-                    // Check if current frame count exceeds the target
-                    if (iCurrentFrameCount < iTarget)
+                    // Check if current count exceeds the target
+                    if (iCurrentCount < iTarget)
                         ctx.rflags |= (1 << 0);     // Set CF
                     else
                         ctx.rflags &= ~(1 << 0);    // Clear CF
