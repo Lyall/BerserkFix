@@ -31,6 +31,7 @@ int iCustomResX = 1280;
 int iCustomResY = 720;
 bool bFixAspect;
 bool bFixHUD;
+float fFramerateCap;
 
 // Aspect ratio + HUD stuff
 float fPi = (float)3.141592653;
@@ -203,6 +204,13 @@ void Configuration()
 
     inipp::get_value(ini.sections["Fix HUD"], "Enabled", bFixHUD);
     spdlog::info("Config Parse: bFixHUD: {}", bFixHUD);
+
+    inipp::get_value(ini.sections["Framerate Cap"], "Framerate", fFramerateCap);
+    if ((float)fFramerateCap < 10.00f || (float)fFramerateCap > 500.00f) {
+        fFramerateCap = std::clamp((float)fFramerateCap, 10.00f, 500.00f);
+        spdlog::warn("Config Parse: fFramerateCap value invalid, clamped to {}", fFramerateCap);
+    }
+    spdlog::info("Config Parse: fFramerateCap: {}", fFramerateCap);
 
     spdlog::info("----------");
 
@@ -562,10 +570,42 @@ void HUD()
     }   
 }
 
+void Framerate()
+{
+    if (fFramerateCap != 60.00f) {
+        // Framerate Cap
+        uint8_t* FramerateCapScanResult = Memory::PatternScan(baseModule, "F3 0F ?? ?? 0F ?? ?? 0F ?? ?? 76 ?? F3 0F ?? ?? ?? ?? ?? ?? F3 ?? ?? ?? ?? 83 ?? 01");
+        if (FramerateCapScanResult) {
+            spdlog::info("Framerate: Cap: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)FramerateCapScanResult - (uintptr_t)baseModule);
+            static SafetyHookMid FramerateCapMidHook{};
+            FramerateCapMidHook = safetyhook::create_mid(FramerateCapScanResult,
+                [](SafetyHookContext& ctx) {
+                    ctx.xmm1.f32[0] = 1.00f / fFramerateCap;
+                });
+        }
+        else if (!FramerateCapScanResult) {
+            spdlog::error("Framerate: Cap: Pattern scan failed.");
+        }
+
+        uint8_t* GameSpeedScanResult = Memory::PatternScan(baseModule, "0F ?? ?? F3 0F ?? ?? F3 0F ?? ?? 0F ?? ?? F3 0F ?? ?? ?? ?? ?? ?? 66 0F ?? ?? ?? ?? ?? ?? 66 0F ?? ?? 0F ?? ?? 72 ??");
+        if (GameSpeedScanResult) {
+            spdlog::info("Framerate: Game Speed: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)GameSpeedScanResult - (uintptr_t)baseModule);
+            static SafetyHookMid GameSpeedMidHook{};
+            GameSpeedMidHook = safetyhook::create_mid(GameSpeedScanResult,
+                [](SafetyHookContext& ctx) {
+                    ctx.xmm3.f32[0] = 1.00f / fFramerateCap;
+                });
+        }
+        else if (!GameSpeedScanResult) {
+            spdlog::error("Framerate: Game Speed: Pattern scan failed.");
+        }
+    }
+}
+
 void Misc()
 {
     // Disable Windows 7 compatibility message on startup
-    uint8_t* WindowsCompatibilityMessageScanResult = Memory::PatternScan(baseModule, "85 ?? 0F 84 ?? ?? ?? ?? 83 3D ?? ?? ?? ?? 00 75 ?? 48 ?? ?? ?? ?? ?? ?? 33 ?? ");
+    uint8_t* WindowsCompatibilityMessageScanResult = Memory::PatternScan(baseModule, "85 ?? 0F 84 ?? ?? ?? ?? 83 3D ?? ?? ?? ?? 00 75 ?? 48 ?? ?? ?? ?? ?? ?? 33 ??");
     if (WindowsCompatibilityMessageScanResult) {
         spdlog::info("Windows Compatibility Message: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)WindowsCompatibilityMessageScanResult - (uintptr_t)baseModule);
         static SafetyHookMid WinCompCheckMidHook{};
@@ -586,6 +626,7 @@ DWORD __stdcall Main(void*)
     Resolution();
     AspectFOV();
     HUD();
+    Framerate();
     Misc();
     return true;
 }
