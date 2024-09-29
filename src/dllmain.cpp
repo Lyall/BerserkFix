@@ -635,11 +635,15 @@ void Framerate()
         }
 
         // Input Speed
-        // TODO: Keyboard input rate?
         uint8_t* ControllerInputSpeedScanResult = Memory::PatternScan(baseModule, "41 0F ?? ?? 41 ?? ?? 41 ?? ?? 3C ?? 72 ?? 8B ?? 09 ?? ??");
-        if (ControllerInputSpeedScanResult) {
+        uint8_t* KeyboardInputSpeedScanResult = Memory::PatternScan(baseModule, "F3 ?? ?? ?? ?? E8 ?? ?? ?? ?? 41 ?? ?? 48 ?? ?? ?? ?? ?? ?? 8B ?? 85 ?? 74 ?? FF ??");
+        if (ControllerInputSpeedScanResult && KeyboardInputSpeedScanResult) {
             spdlog::info("Framerate: Input Speed: Controller: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)ControllerInputSpeedScanResult - (uintptr_t)baseModule);
             static SafetyHookMid ControllerInputSpeedMidHook{};
+
+            static uintptr_t Target1Addr = (uintptr_t)ControllerInputSpeedScanResult + 0x16;
+            static uintptr_t Target2Addr = (uintptr_t)ControllerInputSpeedScanResult + 0x1A;
+
             ControllerInputSpeedMidHook = safetyhook::create_mid(ControllerInputSpeedScanResult + 0xC,
                 [](SafetyHookContext& ctx) {
                     // Get current count
@@ -651,14 +655,28 @@ void Framerate()
                     // Calculate new target count by assuming it is 20 for 60fps
                     int iTarget = static_cast<int>(20.00f * ((float)iCurrentFramerate / 60.00f));
 
+                    // Alter other targets
+                    if (Target1Addr && Target2Addr) {
+                        int iAltTarget = static_cast<int>(16.00f * ((float)iCurrentFramerate / 60.00f));
+                        Memory::Write((uintptr_t)Target1Addr, (BYTE)iAltTarget);
+                        Memory::Write((uintptr_t)Target2Addr, (BYTE)iAltTarget);
+                    }
+
                     // Check if current count exceeds the target
                     if (iCurrentCount < iTarget)
                         ctx.rflags |= (1 << 0);     // Set CF
                     else
                         ctx.rflags &= ~(1 << 0);    // Clear CF
                 });
+
+            spdlog::info("Framerate: Input Speed: Keyboard: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)KeyboardInputSpeedScanResult - (uintptr_t)baseModule);
+            static SafetyHookMid KeyboardInputSpeedMidHook{};
+            KeyboardInputSpeedMidHook = safetyhook::create_mid(KeyboardInputSpeedScanResult + 0x5,
+                [](SafetyHookContext& ctx) {
+                    ctx.xmm1.f32[0] = 1.00f / ((1.00f / fCurrentFrametime) / 60.00f);
+                });
         }
-        else if (!ControllerInputSpeedScanResult) {
+        else if (!ControllerInputSpeedScanResult || !KeyboardInputSpeedScanResult) {
             spdlog::error("Framerate: Input Speed: Pattern scan failed.");
         }
     }
