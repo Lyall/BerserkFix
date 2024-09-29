@@ -272,7 +272,6 @@ void AspectFOV()
         uint8_t* AspectRatioScanResult = Memory::PatternScan(baseModule, "8B ?? ?? ?? ?? ?? C6 ?? ?? ?? ?? ?? 01 89 ?? ?? ?? ?? ?? 40 ?? ?? ?? ?? ?? ?? 75 ??");
         if (AspectRatioScanResult) {
             spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)AspectRatioScanResult - (uintptr_t)baseModule);
-
             static SafetyHookMid AspectRatioMidHook{};
             AspectRatioMidHook = safetyhook::create_mid(AspectRatioScanResult,
                 [](SafetyHookContext& ctx) {
@@ -289,7 +288,6 @@ void AspectFOV()
         uint8_t* MenuAspectRatioScanResult = Memory::PatternScan(baseModule, "F3 0F ?? ?? ?? ?? ?? ?? 48 ?? ?? ?? ?? ?? ?? 4C ?? ?? ?? ?? ?? ?? 48 ?? ?? ?? ?? ?? ?? F3 0F ?? ?? ?? ?? ?? ??");
         if (MenuAspectRatioScanResult) {
             spdlog::info("Menu Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)MenuAspectRatioScanResult - (uintptr_t)baseModule);
-
             static SafetyHookMid AspectRatioMidHook{};
             AspectRatioMidHook = safetyhook::create_mid(MenuAspectRatioScanResult,
                 [](SafetyHookContext& ctx) {
@@ -313,7 +311,6 @@ void HUD()
         uint8_t* HUDSizeScanResult = Memory::PatternScan(baseModule, "F3 0F ?? ?? ?? ?? ?? ?? F3 0F ?? ?? ?? ?? F3 0F ?? ?? ?? ?? 8B ?? ?? ?? 89 ?? ??");
         if (HUDSizeScanResult) {
             spdlog::info("HUD: Size: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)HUDSizeScanResult - (uintptr_t)baseModule);
-
             static SafetyHookMid HUDWidthMidHook{};
             HUDWidthMidHook = safetyhook::create_mid(HUDSizeScanResult,
                 [](SafetyHookContext& ctx) {
@@ -341,7 +338,6 @@ void HUD()
             spdlog::info("HUD: Offset: Patched instruction.");
 
             spdlog::info("HUD: Offset: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)HUDOffsetScanResult - (uintptr_t)baseModule);
-
             static SafetyHookMid HUDWidthOffsetMidHook{};
             HUDWidthOffsetMidHook = safetyhook::create_mid(HUDOffsetScanResult,
                 [](SafetyHookContext& ctx) {
@@ -364,7 +360,6 @@ void HUD()
         uint8_t* MoviesScanResult = Memory::PatternScan(baseModule, "F3 0F ?? ?? ?? F3 0F ?? ?? ?? ?? ?? ?? 48 ?? ?? ?? 00 00 00 00 0F ?? ??");
         if (MoviesScanResult) {
             spdlog::info("HUD: Movies: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)MoviesScanResult - (uintptr_t)baseModule);
-
             static SafetyHookMid MovieWidthMidHook{};
             MovieWidthMidHook = safetyhook::create_mid(MoviesScanResult,
                 [](SafetyHookContext& ctx) {
@@ -387,7 +382,6 @@ void HUD()
         uint8_t* FadesScanResult = Memory::PatternScan(baseModule, "66 0F ?? ?? ?? F3 0F ?? ?? ?? F3 0F ?? ?? ?? 0F ?? ?? F3 0F ?? ?? ?? F3 0F ?? ?? ??");
         if (FadesScanResult) {
             spdlog::info("HUD: Fades: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)FadesScanResult - (uintptr_t)baseModule);
-
             static SafetyHookMid FadeWidthMidHook{};
             FadeWidthMidHook = safetyhook::create_mid(FadesScanResult + 0x5,
                 [](SafetyHookContext& ctx) {
@@ -420,7 +414,6 @@ void HUD()
         uint8_t* PauseBGScanResult = Memory::PatternScan(baseModule, "D2 0F 28 ?? F3 0F ?? ?? ?? ?? ?? ?? 0F 28 ?? F3 0F ?? ?? ?? ?? ?? ?? F3 0F ?? ?? ?? F3 0F ?? ?? ??");
         if (PauseCaptureScanResult && PauseBGScanResult) {
             spdlog::info("HUD: Pause Screen: Capture: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)PauseCaptureScanResult - (uintptr_t)baseModule);
-
             static SafetyHookMid PauseCaptureMidHook{};
             PauseCaptureMidHook = safetyhook::create_mid(PauseCaptureScanResult + 0x8,
                 [](SafetyHookContext& ctx) {
@@ -439,7 +432,6 @@ void HUD()
                 });
 
             spdlog::info("HUD: Pause Screen: Background: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)PauseCaptureScanResult - (uintptr_t)baseModule);
-
             static SafetyHookMid PauseBGMidHook{};
             PauseBGMidHook = safetyhook::create_mid(PauseBGScanResult + 0x21,
                 [](SafetyHookContext& ctx) {
@@ -460,14 +452,14 @@ void HUD()
             spdlog::error("HUD: Pause Screen: Pattern scan failed.");
         }
 
+        // Menu Backgrounds
         uint8_t* MenuBackgroundsScanResult = Memory::PatternScan(baseModule, "7E ?? 49 ?? ?? ?? F3 0F ?? ?? ?? ?? ?? ?? 0F ?? ?? 4C ?? ?? ?? ?? 4C ?? ?? ?? ??");
         if (MenuBackgroundsScanResult) {
-            spdlog::info("HUD: Menu Backgrounds: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)MenuBackgroundsScanResult - (uintptr_t)baseModule);
-
+            spdlog::info("HUD: Backgrounds: Menu: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)MenuBackgroundsScanResult - (uintptr_t)baseModule);
             static SafetyHookMid MenuBackgroundsMidHook{};
             MenuBackgroundsMidHook = safetyhook::create_mid(MenuBackgroundsScanResult + 0x2,
                 [](SafetyHookContext& ctx) {
-                    if (ctx.rsp + 0x58 && ctx.xmm0.f32[0] >= 1920.00f) {
+                    if (ctx.rsp + 0x50 && ctx.xmm0.f32[0] >= 1920.00f) {
                         if (fAspectRatio > fNativeAspect) {
                             float fWidthOffset = ((1080.00f * fAspectRatio) - 1920.00f) / 2.00f;
                             *reinterpret_cast<float*>(ctx.rsp + 0x58) = (1080.00f * fAspectRatio) - fWidthOffset;
@@ -484,6 +476,89 @@ void HUD()
         else if (!MenuBackgroundsScanResult) {
             spdlog::error("HUD: Menu Backgrounds: Pattern scan failed.");
         }
+
+
+        // HUD Backgrounds
+        uint8_t* HUDBackgrounds1ScanResult = Memory::PatternScan(baseModule, "8B ?? 89 ?? ?? 48 8B ?? ?? 48 89 ?? ?? 48 89 ?? ?? 48 89 ?? ??");
+        uint8_t* HUDBackgrounds2ScanResult = Memory::PatternScan(baseModule, "45 ?? ?? 0F 84 ?? ?? ?? ?? 48 ?? ?? E8 ?? ?? ?? ?? 33 ?? 83 ?? ?? ?? ?? ?? 03");
+        uint8_t* HUDBackgrounds3ScanResult = Memory::PatternScan(baseModule, "48 8B ?? ?? 48 89 ?? ?? 48 89 ?? ?? 48 89 ?? ?? 83 ?? ?? ?? ?? ?? 00 74 ??");
+        uint8_t* HUDBackgrounds4ScanResult = Memory::PatternScan(baseModule, "48 ?? ?? ?? 89 ?? ?? 44 0F ?? ?? ?? ?? 48 ?? ?? ?? 48 ?? ?? ?? 48 ?? ?? ?? 48 ?? ?? ??");
+        if (HUDBackgrounds1ScanResult && HUDBackgrounds2ScanResult && HUDBackgrounds3ScanResult && HUDBackgrounds4ScanResult) {
+            spdlog::info("HUD: Backgrounds: Other 1: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)HUDBackgrounds1ScanResult - (uintptr_t)baseModule);
+            static SafetyHookMid HUDBackgrounds1MidHook{};
+            HUDBackgrounds1MidHook = safetyhook::create_mid(HUDBackgrounds1ScanResult,
+                [](SafetyHookContext& ctx) {
+                    if (ctx.rdx + 0x20) {
+                        if (fAspectRatio > fNativeAspect) {
+                            float fWidthOffset = ((1080.00f * fAspectRatio) - 1920.00f) / 2.00f;
+                            *reinterpret_cast<float*>(ctx.rdx + 0x28) = 1080.00f * fAspectRatio;
+                            *reinterpret_cast<float*>(ctx.rdx + 0x20) = -fWidthOffset;
+                        }
+                        else if (fAspectRatio < fNativeAspect) {
+                            float fHeightOffset = ((1920.00f / fAspectRatio) - 1080.00f) / 2.00f;
+                            *reinterpret_cast<float*>(ctx.rdx + 0x2C) = 1920.00f / fAspectRatio;
+                            *reinterpret_cast<float*>(ctx.rdx + 0x24) = -fHeightOffset;
+                        }
+                    }
+                });
+
+            spdlog::info("HUD: Backgrounds: Other 2: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)HUDBackgrounds2ScanResult - (uintptr_t)baseModule);
+            static SafetyHookMid HUDBackgrounds2MidHook{};
+            HUDBackgrounds2MidHook = safetyhook::create_mid(HUDBackgrounds2ScanResult,
+                [](SafetyHookContext& ctx) {
+                    if (ctx.rsp + 0x40) {
+                        if (fAspectRatio > fNativeAspect) {
+                            float fWidthOffset = ((1080.00f * fAspectRatio) - 1920.00f) / 2.00f;
+                            *reinterpret_cast<float*>(ctx.rsp + 0x48) = 1080.00f * fAspectRatio;
+                            *reinterpret_cast<float*>(ctx.rsp + 0x40) = -fWidthOffset;
+                        }
+                        else if (fAspectRatio < fNativeAspect) {
+                            float fHeightOffset = ((1920.00f / fAspectRatio) - 1080.00f) / 2.00f;
+                            *reinterpret_cast<float*>(ctx.rsp + 0x4C) = 1920.00f / fAspectRatio;
+                            *reinterpret_cast<float*>(ctx.rsp + 0x44) = -fHeightOffset;
+                        }
+                    }
+                });
+
+            spdlog::info("HUD: Backgrounds: Other 3: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)HUDBackgrounds3ScanResult - (uintptr_t)baseModule);
+            static SafetyHookMid HUDBackgrounds3MidHook{};
+            HUDBackgrounds3MidHook = safetyhook::create_mid(HUDBackgrounds3ScanResult,
+                [](SafetyHookContext& ctx) {
+                    if (ctx.rdx + 0x20) {
+                        if (fAspectRatio > fNativeAspect) {
+                            float fWidthOffset = ((1080.00f * fAspectRatio) - 1920.00f) / 2.00f;
+                            *reinterpret_cast<float*>(ctx.rdx + 0x28) = 1080.00f * fAspectRatio;
+                            *reinterpret_cast<float*>(ctx.rdx + 0x20) = -fWidthOffset;
+                        }
+                        else if (fAspectRatio < fNativeAspect) {
+                            float fHeightOffset = ((1920.00f / fAspectRatio) - 1080.00f) / 2.00f;
+                            *reinterpret_cast<float*>(ctx.rdx + 0x2C) = 1920.00f / fAspectRatio;
+                            *reinterpret_cast<float*>(ctx.rdx + 0x24) = -fHeightOffset;
+                        }
+                    }
+                });
+
+            spdlog::info("HUD: Backgrounds: Other 4: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)HUDBackgrounds4ScanResult - (uintptr_t)baseModule);
+            static SafetyHookMid HUDBackgrounds4MidHook{};
+            HUDBackgrounds4MidHook = safetyhook::create_mid(HUDBackgrounds4ScanResult,
+                [](SafetyHookContext& ctx) {
+                    if (ctx.rdx + 0x20) {
+                        if (fAspectRatio > fNativeAspect) {
+                            float fWidthOffset = ((1080.00f * fAspectRatio) - 1920.00f) / 2.00f;
+                            *reinterpret_cast<float*>(ctx.rdx + 0x28) = 1080.00f * fAspectRatio;
+                            *reinterpret_cast<float*>(ctx.rdx + 0x20) = -fWidthOffset;
+                        }
+                        else if (fAspectRatio < fNativeAspect) {
+                            float fHeightOffset = ((1920.00f / fAspectRatio) - 1080.00f) / 2.00f;
+                            *reinterpret_cast<float*>(ctx.rdx + 0x2C) = 1920.00f / fAspectRatio;
+                            *reinterpret_cast<float*>(ctx.rdx + 0x24) = -fHeightOffset;
+                        }
+                    }
+                });
+        }
+        else if (!HUDBackgrounds1ScanResult || !HUDBackgrounds2ScanResult || !HUDBackgrounds3ScanResult || HUDBackgrounds4ScanResult) {
+            spdlog::error("HUD: Backgrounds: Pattern scan failed.");
+        }
     }   
 }
 
@@ -493,7 +568,6 @@ void Misc()
     uint8_t* WindowsCompatibilityMessageScanResult = Memory::PatternScan(baseModule, "85 ?? 0F 84 ?? ?? ?? ?? 83 3D ?? ?? ?? ?? 00 75 ?? 48 ?? ?? ?? ?? ?? ?? 33 ?? ");
     if (WindowsCompatibilityMessageScanResult) {
         spdlog::info("Windows Compatibility Message: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)WindowsCompatibilityMessageScanResult - (uintptr_t)baseModule);
-
         static SafetyHookMid WinCompCheckMidHook{};
         WinCompCheckMidHook = safetyhook::create_mid(WindowsCompatibilityMessageScanResult,
             [](SafetyHookContext& ctx) {
