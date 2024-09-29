@@ -394,7 +394,7 @@ void HUD()
             static SafetyHookMid FadeWidthMidHook{};
             FadeWidthMidHook = safetyhook::create_mid(FadesScanResult + 0x5,
                 [](SafetyHookContext& ctx) {
-                    if (ctx.xmm2.f32[0] == 1920.00f) {
+                    if (ctx.xmm2.f32[0] >= 1920.00f) {
                         if (fAspectRatio > fNativeAspect) {
                             ctx.xmm0.f32[0] = -(((1080.00f * fAspectRatio) - 1920.00f) / 2.00f);
                             ctx.xmm2.f32[0] = 1080.00f * fAspectRatio;
@@ -408,7 +408,7 @@ void HUD()
             static SafetyHookMid FadeHeightMidHook{};
             FadeHeightMidHook = safetyhook::create_mid(FadesScanResult + 0x12,
                 [](SafetyHookContext& ctx) {
-                    if (ctx.xmm2.f32[0] == 1920.00f) {
+                    if (ctx.xmm2.f32[0] >= 1920.00f) {
                         if (fAspectRatio < fNativeAspect)
                             ctx.xmm3.f32[0] = 1920.00f / fAspectRatio;                    
                     }
