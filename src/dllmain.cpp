@@ -269,7 +269,7 @@ void AspectFOV()
 {
     if (bFixAspect) {
         // Aspect ratio
-        uint8_t* AspectRatioScanResult = Memory::PatternScan(baseModule, "F3 0F ?? ?? ?? ?? ?? ?? F3 0F ?? ?? ?? ?? ?? ?? 89 ?? ?? ?? ?? ?? 0F ?? ?? ?? ?? ?? ?? 74 ??");
+        uint8_t* AspectRatioScanResult = Memory::PatternScan(baseModule, "8B ?? ?? ?? ?? ?? C6 ?? ?? ?? ?? ?? 01 89 ?? ?? ?? ?? ?? 40 ?? ?? ?? ?? ?? ?? 75 ??");
         if (AspectRatioScanResult) {
             spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)AspectRatioScanResult - (uintptr_t)baseModule);
 
@@ -307,7 +307,6 @@ void HUD()
     // TODO: HUD BUGS
     // Some movies show visual errors?
     // Notable enemy names are stretched.
-    // Main menu logo + firey selection effects are stretched.
 
     if (bFixHUD) {
         // HUD Size
@@ -414,6 +413,32 @@ void HUD()
         }
         else if (!FadesScanResult) {
             spdlog::error("HUD: Fades: Pattern scan failed.");
+        }
+
+        // Pause background
+        uint8_t* PauseBGScanResult = Memory::PatternScan(baseModule, "C7 ?? ?? ?? 00 00 87 44 F3 0F ?? ?? ?? ?? 44 ?? ?? ?? ?? ?? ?? ?? 4C ?? ?? ?? ??");
+        if (PauseBGScanResult) {
+            spdlog::info("HUD: Pause BG: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)PauseBGScanResult - (uintptr_t)baseModule);
+
+            static SafetyHookMid PauseBGMidHook{};
+            PauseBGMidHook = safetyhook::create_mid(PauseBGScanResult + 0x8,
+                [](SafetyHookContext& ctx) {
+                    if (ctx.rsp + 0x50) {
+                        if (fAspectRatio > fNativeAspect) {
+                            float fWidthOffset = ((1080.00f * fAspectRatio) - 1920.00f) / 2.00f;
+                            *reinterpret_cast<float*>(ctx.rsp + 0x50) = (1080.00f * fAspectRatio) - fWidthOffset;
+                            *reinterpret_cast<float*>(ctx.rsp + 0x48) = -fWidthOffset;
+                        }
+                        else if (fAspectRatio < fNativeAspect) {
+                            float fHeightOffset = ((1920.00f / fAspectRatio) - 1080.00f) / 2.00f;
+                            *reinterpret_cast<float*>(ctx.rsp + 0x54) = (1920.00f / fAspectRatio) - fHeightOffset;
+                            *reinterpret_cast<float*>(ctx.rsp + 0x4C) = -fHeightOffset;
+                        }
+                    }
+                });
+        }
+        else if (!PauseBGScanResult) {
+            spdlog::error("HUD: Pause BG: Pattern scan failed.");
         }
     }   
 }
