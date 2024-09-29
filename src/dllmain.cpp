@@ -416,12 +416,13 @@ void HUD()
         }
 
         // Pause background
-        uint8_t* PauseBGScanResult = Memory::PatternScan(baseModule, "C7 ?? ?? ?? 00 00 87 44 F3 0F ?? ?? ?? ?? 44 ?? ?? ?? ?? ?? ?? ?? 4C ?? ?? ?? ??");
-        if (PauseBGScanResult) {
-            spdlog::info("HUD: Pause BG: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)PauseBGScanResult - (uintptr_t)baseModule);
+        uint8_t* PauseCaptureScanResult = Memory::PatternScan(baseModule, "C7 ?? ?? ?? 00 00 87 44 F3 0F ?? ?? ?? ?? 44 ?? ?? ?? ?? ?? ?? ?? 4C ?? ?? ?? ??");
+        uint8_t* PauseBGScanResult = Memory::PatternScan(baseModule, "D2 0F 28 ?? F3 0F ?? ?? ?? ?? ?? ?? 0F 28 ?? F3 0F ?? ?? ?? ?? ?? ?? F3 0F ?? ?? ?? F3 0F ?? ?? ??");
+        if (PauseCaptureScanResult && PauseBGScanResult) {
+            spdlog::info("HUD: Pause Screen: Capture: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)PauseCaptureScanResult - (uintptr_t)baseModule);
 
-            static SafetyHookMid PauseBGMidHook{};
-            PauseBGMidHook = safetyhook::create_mid(PauseBGScanResult + 0x8,
+            static SafetyHookMid PauseCaptureMidHook{};
+            PauseCaptureMidHook = safetyhook::create_mid(PauseCaptureScanResult + 0x8,
                 [](SafetyHookContext& ctx) {
                     if (ctx.rsp + 0x50) {
                         if (fAspectRatio > fNativeAspect) {
@@ -436,9 +437,52 @@ void HUD()
                         }
                     }
                 });
+
+            spdlog::info("HUD: Pause Screen: Background: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)PauseCaptureScanResult - (uintptr_t)baseModule);
+
+            static SafetyHookMid PauseBGMidHook{};
+            PauseBGMidHook = safetyhook::create_mid(PauseBGScanResult + 0x21,
+                [](SafetyHookContext& ctx) {
+                    if (ctx.rcx + 0x20 && ctx.xmm1.f32[0] >= 1920.00f)
+                    {
+                        if (fAspectRatio > fNativeAspect) {
+                            ctx.xmm1.f32[0] = 1080.00f * fAspectRatio;
+                            *reinterpret_cast<float*>(ctx.rcx + 0x20) = -((ctx.xmm1.f32[0] - 1920.00f) / 2.00f);
+                        }
+                        else if (fAspectRatio < fNativeAspect) {
+                            ctx.xmm0.f32[0] = 1920.00f / fAspectRatio;
+                            *reinterpret_cast<float*>(ctx.rcx + 0x24) = -((ctx.xmm0.f32[0] - 1080.00f) / 2.00f);
+                        }
+                    }
+                });
         }
-        else if (!PauseBGScanResult) {
-            spdlog::error("HUD: Pause BG: Pattern scan failed.");
+        else if (!PauseCaptureScanResult || !PauseBGScanResult) {
+            spdlog::error("HUD: Pause Screen: Pattern scan failed.");
+        }
+
+        uint8_t* MenuBackgroundsScanResult = Memory::PatternScan(baseModule, "7E ?? 49 ?? ?? ?? F3 0F ?? ?? ?? ?? ?? ?? 0F ?? ?? 4C ?? ?? ?? ?? 4C ?? ?? ?? ??");
+        if (MenuBackgroundsScanResult) {
+            spdlog::info("HUD: Menu Backgrounds: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)MenuBackgroundsScanResult - (uintptr_t)baseModule);
+
+            static SafetyHookMid MenuBackgroundsMidHook{};
+            MenuBackgroundsMidHook = safetyhook::create_mid(MenuBackgroundsScanResult + 0x2,
+                [](SafetyHookContext& ctx) {
+                    if (ctx.rsp + 0x58 && ctx.xmm0.f32[0] >= 1920.00f) {
+                        if (fAspectRatio > fNativeAspect) {
+                            float fWidthOffset = ((1080.00f * fAspectRatio) - 1920.00f) / 2.00f;
+                            *reinterpret_cast<float*>(ctx.rsp + 0x58) = (1080.00f * fAspectRatio) - fWidthOffset;
+                            *reinterpret_cast<float*>(ctx.rsp + 0x50) = -fWidthOffset;
+                        }
+                        else if (fAspectRatio < fNativeAspect) {
+                            float fHeightOffset = ((1920.00f / fAspectRatio) - 1080.00f) / 2.00f;
+                            *reinterpret_cast<float*>(ctx.rsp + 0x5C) = (1920.00f / fAspectRatio) - fHeightOffset;
+                            *reinterpret_cast<float*>(ctx.rsp + 0x54) = -fHeightOffset;
+                        }
+                    }
+                });
+        }
+        else if (!MenuBackgroundsScanResult) {
+            spdlog::error("HUD: Menu Backgrounds: Pattern scan failed.");
         }
     }   
 }
