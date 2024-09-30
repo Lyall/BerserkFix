@@ -29,6 +29,8 @@ std::pair DesktopDimensions = { 0,0 };
 bool bCustomRes;
 int iCustomResX = 1280;
 int iCustomResY = 720;
+bool bBorderlessMode;
+bool bWindowedMode;
 bool bFixAspect;
 bool bFixHUD;
 float fFramerateCap;
@@ -198,9 +200,13 @@ void Configuration()
     inipp::get_value(ini.sections["Custom Resolution"], "Enabled", bCustomRes);
     inipp::get_value(ini.sections["Custom Resolution"], "Width", iCustomResX);
     inipp::get_value(ini.sections["Custom Resolution"], "Height", iCustomResY);
+    inipp::get_value(ini.sections["Custom Resolution"], "Windowed", bWindowedMode);
+    inipp::get_value(ini.sections["Custom Resolution"], "Borderless", bBorderlessMode);
     spdlog::info("Config Parse: bCustomRes: {}", bCustomRes);
     spdlog::info("Config Parse: iCustomResX: {}", iCustomResX);
     spdlog::info("Config Parse: iCustomResY: {}", iCustomResY);
+    spdlog::info("Config Parse: bWindowedMode: {}", bWindowedMode);
+    spdlog::info("Config Parse: bBorderlessMode: {}", bBorderlessMode);
 
     inipp::get_value(ini.sections["Fix Aspect Ratio"], "Enabled", bFixAspect);
     spdlog::info("Config Parse: bFixAspect: {}", bFixAspect);
@@ -286,6 +292,23 @@ void Resolution()
         }
         else if (!ResolutionListScanResult || !ResolutionIndexScanResult) {
             spdlog::error("Resolution Fix: Pattern scan failed.");
+        }
+
+        // Window mode
+        uint8_t* WindowModeScanResult = Memory::PatternScan(baseModule, "8B ?? ?? ?? ?? ?? 48 ?? ?? 83 ?? 02 0F 83 ?? ?? ?? ?? 83 ?? 01");
+        if (WindowModeScanResult) {
+            spdlog::info("Window Mode: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)WindowModeScanResult - (uintptr_t)baseModule);
+            uintptr_t iWindowModeAddr = Memory::GetAbsolute((uintptr_t)WindowModeScanResult + 0x2);
+            spdlog::info("Window Mode: iWindowMode address is {:s}+{:x}", sExeName.c_str(), iWindowModeAddr - (uintptr_t)baseModule);
+
+            if (bBorderlessMode)
+                bWindowedMode = true; // Force windowed mode if using borderless
+
+            if (iWindowModeAddr)
+                Memory::Write(iWindowModeAddr, (int)bWindowedMode);
+        }
+        else if (!WindowModeScanResult) {
+            spdlog::error("Window Mode: Pattern scan failed.");
         }
     }
 }
@@ -759,8 +782,72 @@ void Framerate()
     }
 }
 
+WNDPROC OldWndProc;
+LRESULT __stdcall NewWndProc(HWND window, UINT message_type, WPARAM w_param, LPARAM l_param) {
+    switch (message_type) {
+    case WM_CLOSE:
+        // No exit/ALT+F4 handler bullshit.
+        return DefWindowProc(window, message_type, w_param, l_param);
+    }
+
+    return CallWindowProc(OldWndProc, window, message_type, w_param, l_param);
+};
+
+SafetyHookInline SetWindowLongA_sh{};
+LONG WINAPI SetWindowLongA_hk(HWND hWnd, int nIndex, LONG dwNewLong) {    
+    // Get window class name
+    char sClassName[256] = { 0 };
+    GetClassNameA(hWnd, sClassName, sizeof(sClassName));
+
+    // Only modify game class
+    if (std::string(sClassName) == std::string(sWindowClassName)) {
+        // Set new wnd proc
+        if (OldWndProc == nullptr)
+            OldWndProc = (WNDPROC)SetWindowLongPtr(hWnd, GWLP_WNDPROC, (LONG_PTR)NewWndProc);
+
+        if (nIndex == GWL_STYLE) {
+            // Modify GWL_STYLE
+            dwNewLong &= ~(WS_CAPTION | WS_THICKFRAME | WS_MINIMIZE | WS_MAXIMIZE | WS_SYSMENU);
+
+            // Modify GW_EXSTYLE
+            LONG dwExStyle = GetWindowLongA(hWnd, GWL_EXSTYLE);
+            dwExStyle &= ~(WS_EX_DLGMODALFRAME | WS_EX_CLIENTEDGE | WS_EX_WINDOWEDGE);
+            SetWindowLongA_sh.stdcall<LONG>(hWnd, GWL_EXSTYLE, dwExStyle);
+
+            spdlog::info("Game Window: SetWindowLongA: Applied borderless styles.");
+
+            // Hide the mouse cursor
+            ShowCursor(FALSE);
+
+            // Set new GWL_STYLE
+            return SetWindowLongA_sh.stdcall<LONG>(hWnd, GWL_STYLE, dwNewLong);
+        }
+    }
+
+    // Call the original function
+    return SetWindowLongA_sh.stdcall<LONG>(hWnd, nIndex, dwNewLong);
+}
+
 void Misc()
 {
+    if (bBorderlessMode) {
+        // Hook SetWindowLongA to apply borderless style
+        HMODULE user32Module = GetModuleHandleW(L"user32.dll");
+        if (user32Module) {
+            FARPROC SetWindowLongA_fn = GetProcAddress(user32Module, "SetWindowLongA");
+            if (SetWindowLongA_fn) {
+                SetWindowLongA_sh = safetyhook::create_inline(SetWindowLongA_fn, reinterpret_cast<void*>(SetWindowLongA_hk));
+                spdlog::info("Game Window: Hooked SetWindowLongA.");
+            }
+            else {
+                spdlog::error("Game Window: Failed to get function address for SetWindowLongA.");
+            }
+        }
+        else {
+            spdlog::error("Game Window: Failed to get module handle for user32.dll.");
+        }
+    }
+
     // Disable Windows 7 compatibility message on startup
     uint8_t* WindowsCompatibilityMessageScanResult = Memory::PatternScan(baseModule, "85 ?? 0F 84 ?? ?? ?? ?? 83 3D ?? ?? ?? ?? 00 75 ?? 48 ?? ?? ?? ?? ?? ?? 33 ??");
     if (WindowsCompatibilityMessageScanResult) {
