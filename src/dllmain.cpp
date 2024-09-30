@@ -32,6 +32,7 @@ int iCustomResY = 720;
 bool bFixAspect;
 bool bFixHUD;
 float fFramerateCap;
+float fAdditionalFOV;
 
 // Aspect ratio + HUD stuff
 float fPi = (float)3.141592653;
@@ -206,6 +207,13 @@ void Configuration()
     inipp::get_value(ini.sections["Fix HUD"], "Enabled", bFixHUD);
     spdlog::info("Config Parse: bFixHUD: {}", bFixHUD);
 
+    inipp::get_value(ini.sections["Gameplay FOV"], "AdditionalFOV", fAdditionalFOV);
+    if ((float)fAdditionalFOV < -20.00f || (float)fAdditionalFOV > 120.00f) {
+        fAdditionalFOV = std::clamp((float)fAdditionalFOV, -20.00f, 120.00f);
+        spdlog::warn("Config Parse: fAdditionalFOV value invalid, clamped to {}", fAdditionalFOV);
+    }
+    spdlog::info("Config Parse: fAdditionalFOV: {}", fAdditionalFOV);
+
     inipp::get_value(ini.sections["Framerate Cap"], "Framerate", fFramerateCap);
     if ((float)fFramerateCap < 10.00f || (float)fFramerateCap > 500.00f) {
         fFramerateCap = std::clamp((float)fFramerateCap, 10.00f, 500.00f);
@@ -307,12 +315,31 @@ void AspectFOV()
             spdlog::error("Menu Aspect Ratio: Pattern scan failed.");
         }
     }
+
+    if (fAdditionalFOV != 0.00f) {
+        // Gameplay FOV
+        uint8_t* GameplayFOVScanResult = Memory::PatternScan(baseModule, "F3 0F ?? ?? ?? ?? ?? ?? E8 ?? ?? ?? ?? 48 ?? ?? F3 0F ?? ?? ?? ?? ?? ?? E8 ?? ?? ?? ?? 48 ?? ??");
+        if (GameplayFOVScanResult) {
+            spdlog::info("Gameplay FOV: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)GameplayFOVScanResult - (uintptr_t)baseModule);
+            static SafetyHookMid AspectRatioMidHook{};
+            AspectRatioMidHook = safetyhook::create_mid(GameplayFOVScanResult,
+                [](SafetyHookContext& ctx) {
+                    float fovRad = ctx.xmm0.f32[0];             // Get fov in radians
+                    float fovDeg = fovRad * (180.00f / fPi);    // Convert to degrees
+                    fovDeg += fAdditionalFOV;                   // Add additional FOV in degrees.                   
+                    ctx.xmm0.f32[0] = fovDeg * (fPi / 180.00f); // Back to radians
+                });
+        }
+        else if (!GameplayFOVScanResult) {
+            spdlog::error("Gameplay FOV: Pattern scan failed.");
+        }
+    }
 }
 
 void HUD()
 {
     // TODO: HUD BUGS
-    // Some movies show visual errors?
+    // Some movies show visual errors at the beginning.
     // Notable enemy names are stretched.
 
     if (bFixHUD) {
