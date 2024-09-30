@@ -495,16 +495,14 @@ void HUD()
             static SafetyHookMid MenuBackgroundsMidHook{};
             MenuBackgroundsMidHook = safetyhook::create_mid(MenuBackgroundsScanResult + 0x2,
                 [](SafetyHookContext& ctx) {
-                    if (ctx.rsp + 0x50 && ctx.xmm0.f32[0] >= 1920.00f) {
+                    if (ctx.rsp + 0x50 && ctx.xmm0.f32[0] == (float)iCustomResX && ctx.xmm1.f32[0] == (float)iCustomResY) {
                         if (fAspectRatio > fNativeAspect) {
-                            float fWidthOffset = ((1080.00f * fAspectRatio) - 1920.00f) / 2.00f;
-                            *reinterpret_cast<float*>(ctx.rsp + 0x58) = (1080.00f * fAspectRatio) - fWidthOffset;
-                            *reinterpret_cast<float*>(ctx.rsp + 0x50) = -fWidthOffset;
+                            *reinterpret_cast<float*>(ctx.rsp + 0x58) = fHUDWidth + fHUDWidthOffset;
+                            *reinterpret_cast<float*>(ctx.rsp + 0x50) = fHUDWidthOffset;
                         }
                         else if (fAspectRatio < fNativeAspect) {
-                            float fHeightOffset = ((1920.00f / fAspectRatio) - 1080.00f) / 2.00f;
-                            *reinterpret_cast<float*>(ctx.rsp + 0x5C) = (1920.00f / fAspectRatio) - fHeightOffset;
-                            *reinterpret_cast<float*>(ctx.rsp + 0x54) = -fHeightOffset;
+                            *reinterpret_cast<float*>(ctx.rsp + 0x5C) = fHUDHeight + fHUDHeightOffset;
+                            *reinterpret_cast<float*>(ctx.rsp + 0x54) = fHUDHeightOffset;
                         }
                     }
                 });
