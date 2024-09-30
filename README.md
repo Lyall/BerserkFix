@@ -8,7 +8,10 @@ This is a fix for BERSERK: Band of the Hawk that adds ultrawide/narrower support
 
 ### General
 - Custom resolution support.
+- Borderless mode.
+- Adjust gameplay FOV.
 - Adjust framerate cap. (Experimental, see [known issues](#known-issues).)
+- Adjust shadow resolution.
 - Remove Windows 7 compatibility nag message.
 
 ### Ultrawide/narrower
