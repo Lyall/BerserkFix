@@ -33,6 +33,7 @@ bool bFixAspect;
 bool bFixHUD;
 float fFramerateCap;
 float fAdditionalFOV;
+int iShadowResolution;
 
 // Aspect ratio + HUD stuff
 float fPi = (float)3.141592653;
@@ -220,6 +221,13 @@ void Configuration()
         spdlog::warn("Config Parse: fFramerateCap value invalid, clamped to {}", fFramerateCap);
     }
     spdlog::info("Config Parse: fFramerateCap: {}", fFramerateCap);
+
+    inipp::get_value(ini.sections["Shadow Quality"], "Resolution", iShadowResolution);
+    if (iShadowResolution < 64 || iShadowResolution > 16384) {
+        iShadowResolution = std::clamp(iShadowResolution, 64, 16384);
+        spdlog::warn("Config Parse: iShadowResolution value invalid, clamped to {}", iShadowResolution);
+    }
+    spdlog::info("Config Parse: iShadowResolution: {}", iShadowResolution);
 
     spdlog::info("----------");
 
@@ -765,6 +773,28 @@ void Misc()
     }
     else if (!WindowsCompatibilityMessageScanResult) {
         spdlog::error("Windows Compatibility Message: Pattern scan failed.");
+    }
+
+    if (iShadowResolution != 4096) {
+        // Shadow Quality 
+        uint8_t* ShadowQualityScanResult = Memory::PatternScan(baseModule, "C6 ?? ?? ?? ?? 33 ?? 41 ?? 01 00 00 00 89 ?? ?? ??");
+        if (ShadowQualityScanResult) {
+            spdlog::info("Shadow Quality: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)ShadowQualityScanResult - (uintptr_t)baseModule);
+            static SafetyHookMid WinCompCheckMidHook{};
+            WinCompCheckMidHook = safetyhook::create_mid(ShadowQualityScanResult,
+                [](SafetyHookContext& ctx) {
+                    // If shadows are set to high
+                    if (ctx.rax == 0x1000) {
+                        // Change shadow resolution
+                        ctx.rax = iShadowResolution;
+                        ctx.rdx = iShadowResolution;
+                    }
+
+                });
+        }
+        else if (!ShadowQualityScanResult) {
+            spdlog::error("Shadow Quality: Pattern scan failed.");
+        }
     }
 }
 
