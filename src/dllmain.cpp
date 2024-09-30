@@ -421,7 +421,7 @@ void HUD()
             static SafetyHookMid FadeWidthMidHook{};
             FadeWidthMidHook = safetyhook::create_mid(FadesScanResult + 0x5,
                 [](SafetyHookContext& ctx) {
-                    if (ctx.xmm2.f32[0] >= 1920.00f) {
+                    if (ctx.xmm2.f32[0] == 1920.00f) {
                         if (fAspectRatio > fNativeAspect) {
                             ctx.xmm0.f32[0] = -(((1080.00f * fAspectRatio) - 1920.00f) / 2.00f);
                             ctx.xmm2.f32[0] = 1080.00f * fAspectRatio;
@@ -435,7 +435,7 @@ void HUD()
             static SafetyHookMid FadeHeightMidHook{};
             FadeHeightMidHook = safetyhook::create_mid(FadesScanResult + 0x12,
                 [](SafetyHookContext& ctx) {
-                    if (ctx.xmm2.f32[0] >= 1920.00f) {
+                    if (ctx.xmm2.f32[0] == 1920.00f) {
                         if (fAspectRatio < fNativeAspect)
                             ctx.xmm3.f32[0] = 1920.00f / fAspectRatio;                    
                     }
@@ -471,7 +471,7 @@ void HUD()
             static SafetyHookMid PauseBGMidHook{};
             PauseBGMidHook = safetyhook::create_mid(PauseBGScanResult + 0x21,
                 [](SafetyHookContext& ctx) {
-                    if (ctx.rcx + 0x20 && ctx.xmm1.f32[0] >= 1920.00f)
+                    if (ctx.rcx + 0x20 && ctx.xmm1.f32[0] == 1920.00f)
                     {
                         if (fAspectRatio > fNativeAspect) {
                             ctx.xmm1.f32[0] = 1080.00f * fAspectRatio;
@@ -486,6 +486,50 @@ void HUD()
         }
         else if (!PauseCaptureScanResult || !PauseBGScanResult) {
             spdlog::error("HUD: Pause Screen: Pattern scan failed.");
+        }
+
+        // Mission select
+        uint8_t* MissionSelectCaptureScanResult = Memory::PatternScan(baseModule, "E8 ?? ?? ?? ?? 48 8B ?? ?? ?? ?? ?? ?? 45 ?? ?? BA 01 00 00 00 E8 ?? ?? ?? ??");
+        uint8_t* MissionSelectBGScanResult = Memory::PatternScan(baseModule, "48 ?? ?? ?? 49 ?? ?? ?? 4C ?? ?? ?? 4C ?? ?? ?? E8 ?? ?? ?? ?? 48 ?? ?? ?? ?? 48 ?? ?? ?? 5F C3");
+        if (MissionSelectCaptureScanResult && MissionSelectBGScanResult) {
+            spdlog::info("HUD: Mission Select Screen: Capture: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)MissionSelectCaptureScanResult - (uintptr_t)baseModule);
+            static SafetyHookMid MissionSelectCaptureMidHook{};
+            MissionSelectCaptureMidHook = safetyhook::create_mid(MissionSelectCaptureScanResult,
+                [](SafetyHookContext& ctx) {
+                    if (ctx.rsp + 0x40 && ctx.xmm0.f32[0] == 1920.00f) {
+                        if (fAspectRatio > fNativeAspect) {
+                            float fWidthOffset = ((1080.00f * fAspectRatio) - 1920.00f) / 2.00f;
+                            *reinterpret_cast<float*>(ctx.rsp + 0x48) = (1080.00f * fAspectRatio) - fWidthOffset;
+                            *reinterpret_cast<float*>(ctx.rsp + 0x40) = -fWidthOffset;
+                        }
+                        else if (fAspectRatio < fNativeAspect) {
+                            float fHeightOffset = ((1920.00f / fAspectRatio) - 1080.00f) / 2.00f;
+                            *reinterpret_cast<float*>(ctx.rsp + 0x4C) = (1920.00f / fAspectRatio) - fHeightOffset;
+                            *reinterpret_cast<float*>(ctx.rsp + 0x44) = -fHeightOffset;
+                        }
+                    }
+                });
+
+            spdlog::info("HUD: ission Select Screen: Background: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)MissionSelectBGScanResult - (uintptr_t)baseModule);
+            static SafetyHookMid MissionSelectBGMidHook{};
+            MissionSelectBGMidHook = safetyhook::create_mid(MissionSelectBGScanResult,
+                [](SafetyHookContext& ctx) {
+                    if (ctx.r8 + 0x20 && ctx.xmm1.f32[0] == 1920.00f) {
+                        if (fAspectRatio > fNativeAspect) {
+                            float fWidthOffset = ((1080.00f * fAspectRatio) - 1920.00f) / 2.00f;
+                            *reinterpret_cast<float*>(ctx.r8 + 0x28) = 1080.00f * fAspectRatio;
+                            *reinterpret_cast<float*>(ctx.r8 + 0x20) = -fWidthOffset;
+                        }
+                        else if (fAspectRatio < fNativeAspect) {
+                            float fHeightOffset = ((1920.00f / fAspectRatio) - 1080.00f) / 2.00f;
+                            *reinterpret_cast<float*>(ctx.r8 + 0x2C) = 1920.00f / fAspectRatio;
+                            *reinterpret_cast<float*>(ctx.r8 + 0x24) = -fHeightOffset;
+                        }
+                    }
+                });
+        }
+        else if (!MissionSelectCaptureScanResult || !MissionSelectBGScanResult) {
+            spdlog::error("HUD: MissionSelect Screen: Pattern scan failed.");
         }
 
         // Menu Backgrounds
