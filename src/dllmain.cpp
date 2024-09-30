@@ -801,11 +801,11 @@ LONG WINAPI SetWindowLongA_hk(HWND hWnd, int nIndex, LONG dwNewLong) {
 
     // Only modify game class
     if (std::string(sClassName) == std::string(sWindowClassName)) {
-        // Set new wnd proc
+        // Set new wnd proc to kill alt+f4 handler
         if (OldWndProc == nullptr)
             OldWndProc = (WNDPROC)SetWindowLongPtr(hWnd, GWLP_WNDPROC, (LONG_PTR)NewWndProc);
 
-        if (nIndex == GWL_STYLE) {
+        if (nIndex == GWL_STYLE && bBorderlessMode) {
             // Modify GWL_STYLE
             dwNewLong &= ~(WS_CAPTION | WS_THICKFRAME | WS_MINIMIZE | WS_MAXIMIZE | WS_SYSMENU);
 
@@ -830,22 +830,20 @@ LONG WINAPI SetWindowLongA_hk(HWND hWnd, int nIndex, LONG dwNewLong) {
 
 void Misc()
 {
-    if (bBorderlessMode) {
-        // Hook SetWindowLongA to apply borderless style
-        HMODULE user32Module = GetModuleHandleW(L"user32.dll");
-        if (user32Module) {
-            FARPROC SetWindowLongA_fn = GetProcAddress(user32Module, "SetWindowLongA");
-            if (SetWindowLongA_fn) {
-                SetWindowLongA_sh = safetyhook::create_inline(SetWindowLongA_fn, reinterpret_cast<void*>(SetWindowLongA_hk));
-                spdlog::info("Game Window: Hooked SetWindowLongA.");
-            }
-            else {
-                spdlog::error("Game Window: Failed to get function address for SetWindowLongA.");
-            }
+    // Hook SetWindowLongA to apply borderless style
+    HMODULE user32Module = GetModuleHandleW(L"user32.dll");
+    if (user32Module) {
+        FARPROC SetWindowLongA_fn = GetProcAddress(user32Module, "SetWindowLongA");
+        if (SetWindowLongA_fn) {
+            SetWindowLongA_sh = safetyhook::create_inline(SetWindowLongA_fn, reinterpret_cast<void*>(SetWindowLongA_hk));
+            spdlog::info("Game Window: Hooked SetWindowLongA.");
         }
         else {
-            spdlog::error("Game Window: Failed to get module handle for user32.dll.");
+            spdlog::error("Game Window: Failed to get function address for SetWindowLongA.");
         }
+    }
+    else {
+        spdlog::error("Game Window: Failed to get module handle for user32.dll.");
     }
 
     // Disable Windows 7 compatibility message on startup
