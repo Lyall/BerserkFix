@@ -328,23 +328,23 @@ void Resolution()
             spdlog::info("Resolution: Resolution list address is {:s}+{:x}", sExeName.c_str(), ResListAddr - (uintptr_t)baseModule);
          
             // Write new resolution
-            Memory::Write(ResListAddr + 0x0, (short)iCustomResX);
-            Memory::Write(ResListAddr + 0x2, (short)iCustomResY);
-            Memory::Write(ResListAddr + 0x4, (short)iCustomResY);
-            spdlog::info("Resolution: Replaced {}x{} with {}x{}", 640, 360, (short)iCustomResX, (short)iCustomResY);
+            Memory::Write(ResListAddr + 0x6, (short)iCustomResX);
+            Memory::Write(ResListAddr + 0x8, (short)iCustomResY);
+            Memory::Write(ResListAddr + 0xA, (short)iCustomResY);
+            spdlog::info("Resolution: Replaced {}x{} with {}x{}", 800, 450, (short)iCustomResX, (short)iCustomResY);
 
             spdlog::info("Resolution: Index address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)ResolutionIndexScanResult - (uintptr_t)baseModule);
             uintptr_t ResIndexAddr = Memory::GetAbsolute((uintptr_t)ResolutionIndexScanResult - 0x4);
             spdlog::info("Resolution: Resolution index address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)ResIndexAddr - (uintptr_t)baseModule);
 
-            // Force 640x360 on startup
-            *reinterpret_cast<int*>(ResIndexAddr) = 0;
+            // Force 800x450 on startup
+            *reinterpret_cast<int*>(ResIndexAddr) = 1;
 
             static SafetyHookMid ForceResMidHook{};
             ForceResMidHook = safetyhook::create_mid(ResolutionIndexScanResult + 0x6,
                 [](SafetyHookContext& ctx) {
-                    // Force 640x360 on any resolution change
-                    ctx.rcx = 0;
+                    // Force 800x450 on any resolution change
+                    ctx.rcx = 1;
                 });
         }
         else if (!ResolutionListScanResult || !ResolutionIndexScanResult) {
