@@ -433,8 +433,8 @@ void AspectFOV()
         uint8_t* MenuAspectRatioScanResult = Memory::PatternScan(baseModule, "F3 0F ?? ?? ?? ?? ?? ?? 48 ?? ?? ?? ?? ?? ?? 4C ?? ?? ?? ?? ?? ?? 48 ?? ?? ?? ?? ?? ?? F3 0F ?? ?? ?? ?? ?? ??");
         if (MenuAspectRatioScanResult) {
             spdlog::info("Menu Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)MenuAspectRatioScanResult - (uintptr_t)baseModule);
-            static SafetyHookMid AspectRatioMidHook{};
-            AspectRatioMidHook = safetyhook::create_mid(MenuAspectRatioScanResult,
+            static SafetyHookMid MenuAspectRatioMidHook{};
+            MenuAspectRatioMidHook = safetyhook::create_mid(MenuAspectRatioScanResult,
                 [](SafetyHookContext& ctx) {
                     ctx.xmm0.f32[0] = fAspectRatio;
                 });
@@ -447,16 +447,24 @@ void AspectFOV()
     if (fGameplayFOVMulti != 1.00f) {
         // Gameplay FOV
         uint8_t* GameplayFOVScanResult = Memory::PatternScan(baseModule, "F3 0F ?? ?? ?? ?? ?? ?? E8 ?? ?? ?? ?? 48 ?? ?? F3 0F ?? ?? ?? ?? ?? ?? E8 ?? ?? ?? ?? 48 ?? ??");
-        if (GameplayFOVScanResult) {
+        uint8_t* GameplayLockOnFOVScanResult = Memory::PatternScan(baseModule, "F3 0F ?? ?? ?? ?? ?? ?? F3 0F ?? ?? ?? ?? ?? ?? F3 0F ?? ?? ?? ?? ?? ?? F3 44 ?? ?? ?? ?? ?? F3 0F ?? ?? ?? ?? F3 0F ?? ?? ?? F3 0F ?? ?? ?? ?? F3 0F ?? ?? ?? ?? ?? ?? E8 ?? ?? ?? ??");
+        if (GameplayFOVScanResult && GameplayLockOnFOVScanResult) {
             spdlog::info("Gameplay FOV: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)GameplayFOVScanResult - (uintptr_t)baseModule);
-            static SafetyHookMid AspectRatioMidHook{};
-            AspectRatioMidHook = safetyhook::create_mid(GameplayFOVScanResult,
+            static SafetyHookMid GameplayFOVMidHook{};
+            GameplayFOVMidHook = safetyhook::create_mid(GameplayFOVScanResult,
+                [](SafetyHookContext& ctx) {
+                    ctx.xmm0.f32[0] *= fGameplayFOVMulti;
+                });
+
+            spdlog::info("Gameplay FOV: Lock-On: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)GameplayLockOnFOVScanResult - (uintptr_t)baseModule);
+            static SafetyHookMid GameplayLockOnFOVMidHook{};
+            GameplayLockOnFOVMidHook = safetyhook::create_mid(GameplayLockOnFOVScanResult,
                 [](SafetyHookContext& ctx) {
                     ctx.xmm0.f32[0] *= fGameplayFOVMulti;
                 });
         }
-        else if (!GameplayFOVScanResult) {
-            spdlog::error("Gameplay FOV: Pattern scan failed.");
+        else if (!GameplayFOVScanResult || !!GameplayLockOnFOVScanResult) {
+            spdlog::error("Gameplay FOV: Pattern scan(s) failed.");
         }
     }
 }
