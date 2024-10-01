@@ -921,7 +921,7 @@ DWORD __stdcall Main(void*)
 {
     Logging();
     Configuration();
-    WindowManagement;
+    WindowManagement();
     Resolution();
     AspectFOV();
     HUD();
