@@ -260,21 +260,16 @@ void Resolution()
         if (ResolutionListScanResult && ResolutionIndexScanResult) {
             spdlog::info("Resolution: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)ResolutionListScanResult - (uintptr_t)baseModule);
             uintptr_t ResListAddr = Memory::GetAbsolute((uintptr_t)ResolutionListScanResult + 0x3);
-            spdlog::info("Resolution: Resolution list address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)ResListAddr - (uintptr_t)baseModule);
+            spdlog::info("Resolution: Resolution list address is {:s}+{:x}", sExeName.c_str(), ResListAddr - (uintptr_t)baseModule);
          
-            if (ResListAddr) {
-                for (int i = 0; i < 44; i++) {
-                    int offset = (i * 0x2);
-                    short ResX = *reinterpret_cast<short*>(ResListAddr + offset);
-                    short ResY = *reinterpret_cast<short*>(ResListAddr + offset + 0x2);
+            // Write new resolution
+            Memory::Write(ResListAddr + 0x48, (short)iCustomResX);
+            Memory::Write(ResListAddr + 0x4A, (short)iCustomResY);
+            Memory::Write(ResListAddr + 0x4C, (short)iCustomResY);
+            Memory::Write(ResListAddr + 0x4E, (short)iCustomResX);
+            Memory::Write(ResListAddr + 0x50, (short)iCustomResY);
+            spdlog::info("Resolution: Replaced {}x{} with {}x{}", 2560, 1440, (short)iCustomResX, (short)iCustomResY);
 
-                    if (ResX == 2560 && ResY == 1440) {
-                        Memory::Write((uintptr_t)ResListAddr + offset, (short)iCustomResX);
-                        Memory::Write((uintptr_t)ResListAddr + offset + 0x2, (short)iCustomResY);
-                        spdlog::info("Resolution: Replaced {}x{} with {}x{}", ResX, ResY, (short)iCustomResX, (short)iCustomResY);
-                    }
-                }
-            }
             spdlog::info("Resolution: Index address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)ResolutionIndexScanResult - (uintptr_t)baseModule);
             uintptr_t ResIndexAddr = Memory::GetAbsolute((uintptr_t)ResolutionIndexScanResult - 0x4);
             spdlog::info("Resolution: Resolution index address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)ResIndexAddr - (uintptr_t)baseModule);
@@ -288,10 +283,49 @@ void Resolution()
                     // Force 2560x1440 on any resolution change
                     ctx.rcx = 0xC;
                 });
-         
         }
         else if (!ResolutionListScanResult || !ResolutionIndexScanResult) {
             spdlog::error("Resolution Fix: Pattern scan failed.");
+        }
+
+        // Spoof GetSystemMetrics results
+        uint8_t* SystemMetrics1ScanResult = Memory::PatternScan(baseModule, "B9 01 00 00 00 41 ?? ?? 99 2B ?? D1 ?? 8B ??");
+        uint8_t* SystemMetrics2ScanResult = Memory::PatternScan(baseModule, "0F ?? ?? 3B ?? 7C ?? B9 01 00 00 00 FF ?? ?? ?? ?? ?? 0F ?? ?? ?? 3B ?? 7D ?? 33 ??");
+        uint8_t* ResCheckScanResult = Memory::PatternScan(baseModule, "74 ?? 33 ?? FF ?? ?? ?? ?? ?? 0F ?? ?? ?? 3B ?? 7C ??");
+        if (SystemMetrics1ScanResult && SystemMetrics2ScanResult) {
+            spdlog::info("SystemMetrics: 1: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)SystemMetrics1ScanResult - (uintptr_t)baseModule);
+            static SafetyHookMid WindowWidthMidHook{};
+            WindowWidthMidHook = safetyhook::create_mid(SystemMetrics1ScanResult,
+                [](SafetyHookContext& ctx) {
+                    ctx.rax = INT_MAX;
+                });
+
+            static SafetyHookMid WindowHeightMidHook{};
+            WindowHeightMidHook = safetyhook::create_mid(SystemMetrics1ScanResult + 0x15,
+                [](SafetyHookContext& ctx) {
+                    ctx.rax = INT_MAX;
+                });
+
+            spdlog::info("SystemMetrics: 2: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)SystemMetrics2ScanResult - (uintptr_t)baseModule);
+            static SafetyHookMid sysWidthMidHook{};
+            sysWidthMidHook = safetyhook::create_mid(SystemMetrics2ScanResult,
+                [](SafetyHookContext& ctx) {
+                    ctx.rax = INT_MAX;
+                });
+
+            static SafetyHookMid sysHeightMidHook{};
+            sysHeightMidHook = safetyhook::create_mid(SystemMetrics2ScanResult + 0x12,
+                [](SafetyHookContext& ctx) {
+                    ctx.rax = INT_MAX;
+                });
+
+            spdlog::info("SystemMetrics: ResCheck: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)ResCheckScanResult - (uintptr_t)baseModule);
+            Memory::PatchBytes((uintptr_t)ResCheckScanResult, "\xEB", 1);
+
+            spdlog::info("SystemMetrics: ResCheck: Patched instruction.");
+        }
+        else if (!SystemMetrics1ScanResult || !SystemMetrics2ScanResult) {
+            spdlog::error("SystemMetrics: Pattern scan(s) failed.");
         }
 
         // Window mode
@@ -420,7 +454,7 @@ void HUD()
                 });
         }
         else if (!HUDOffsetCodepathScanResult || !HUDOffsetScanResult) {
-            spdlog::error("HUD: Offset: Pattern scan failed.");
+            spdlog::error("HUD: Offset: Pattern scan(s) failed.");
         }
 
         // Movies
@@ -516,7 +550,7 @@ void HUD()
                 });
         }
         else if (!PauseCaptureScanResult || !PauseBGScanResult) {
-            spdlog::error("HUD: Pause Screen: Pattern scan failed.");
+            spdlog::error("HUD: Pause Screen: Pattern scan(s) failed.");
         }
 
         // Mission select
@@ -560,7 +594,7 @@ void HUD()
                 });
         }
         else if (!MissionSelectCaptureScanResult || !MissionSelectBGScanResult) {
-            spdlog::error("HUD: MissionSelect Screen: Pattern scan failed.");
+            spdlog::error("HUD: MissionSelect Screen: Pattern scan(s) failed.");
         }
 
         // Menu Backgrounds
@@ -684,7 +718,7 @@ void HUD()
                 });
         }
         else if (!HUDBackgrounds1ScanResult || !HUDBackgrounds2ScanResult || !HUDBackgrounds3ScanResult || !HUDBackgrounds4ScanResult || !HUDBackgrounds5ScanResult) {
-            spdlog::error("HUD: Backgrounds: Pattern scan failed.");
+            spdlog::error("HUD: Backgrounds: Pattern scan(s) failed.");
         }
     }   
 }
@@ -777,7 +811,7 @@ void Framerate()
                 });
         }
         else if (!ControllerInputSpeedScanResult || !KeyboardInputSpeedScanResult) {
-            spdlog::error("Framerate: Input Speed: Pattern scan failed.");
+            spdlog::error("Framerate: Input Speed: Pattern scan(s) failed.");
         }
     }
 }
