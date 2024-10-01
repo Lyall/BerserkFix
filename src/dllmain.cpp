@@ -473,7 +473,6 @@ void HUD()
 {
     // TODO: HUD BUGS
     // Some movies show visual errors at the beginning.
-    // Notable enemy names are stretched.
 
     if (bFixHUD) {
         // HUD Size
@@ -523,6 +522,28 @@ void HUD()
         }
         else if (!HUDOffsetCodepathScanResult || !HUDOffsetScanResult) {
             spdlog::error("HUD: Offset: Pattern scan(s) failed.");
+        }
+
+        // Enemy Nameplates
+        uint8_t* EnemyNamesScanResult = Memory::PatternScan(baseModule, "B8 ?? ?? ?? ?? 6B ?? ?? F7 ?? 03 ?? C1 ?? ?? 8B ?? C1 ?? ?? 03 ?? 49 ?? ?? ??");
+        if (EnemyNamesScanResult) {
+            spdlog::info("HUD: Enemy Names: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)EnemyNamesScanResult - (uintptr_t)baseModule);
+            static SafetyHookMid EnemyNamesWidthMidHook{};
+            EnemyNamesWidthMidHook = safetyhook::create_mid(EnemyNamesScanResult,
+                [](SafetyHookContext& ctx) {
+                    if (fAspectRatio > fNativeAspect)
+                        ctx.rcx = static_cast<int>(fHUDWidth);
+                });
+
+            static SafetyHookMid EnemyNamesHeightMidHook{};
+            EnemyNamesHeightMidHook = safetyhook::create_mid(EnemyNamesScanResult + 0x1D,
+                [](SafetyHookContext& ctx) {
+                    if (fAspectRatio < fNativeAspect)
+                        ctx.rcx = static_cast<int>(fHUDHeight);
+                });
+        }
+        else if (!EnemyNamesScanResult) {
+            spdlog::error("HUD: Enemy Names: Pattern scan failed.");
         }
 
         // Movies
