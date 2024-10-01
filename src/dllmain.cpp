@@ -251,6 +251,71 @@ void Configuration()
     CalculateAspectRatio(true);
 }
 
+WNDPROC OldWndProc;
+LRESULT __stdcall NewWndProc(HWND window, UINT message_type, WPARAM w_param, LPARAM l_param) {
+    switch (message_type) {
+    case WM_CLOSE:
+        // No exit/ALT+F4 handler bullshit.
+        return DefWindowProc(window, message_type, w_param, l_param);
+    }
+
+    return CallWindowProc(OldWndProc, window, message_type, w_param, l_param);
+};
+
+SafetyHookInline SetWindowLongA_sh{};
+LONG WINAPI SetWindowLongA_hk(HWND hWnd, int nIndex, LONG dwNewLong) {
+    // Get window class name
+    char sClassName[256] = { 0 };
+    GetClassNameA(hWnd, sClassName, sizeof(sClassName));
+
+    // Only modify game class
+    if (std::string(sClassName) == std::string(sWindowClassName)) {
+        // Set new wnd proc to kill alt+f4 handler
+        if (OldWndProc == nullptr)
+            OldWndProc = (WNDPROC)SetWindowLongPtr(hWnd, GWLP_WNDPROC, (LONG_PTR)NewWndProc);
+
+        if (nIndex == GWL_STYLE && bBorderlessMode) {
+            // Modify GWL_STYLE
+            dwNewLong &= ~(WS_CAPTION | WS_THICKFRAME | WS_MINIMIZE | WS_MAXIMIZE | WS_SYSMENU);
+
+            // Modify GW_EXSTYLE
+            LONG dwExStyle = GetWindowLongA(hWnd, GWL_EXSTYLE);
+            dwExStyle &= ~(WS_EX_DLGMODALFRAME | WS_EX_CLIENTEDGE | WS_EX_WINDOWEDGE);
+            SetWindowLongA_sh.stdcall<LONG>(hWnd, GWL_EXSTYLE, dwExStyle);
+
+            spdlog::info("Game Window: SetWindowLongA: Applied borderless styles.");
+
+            // Hide the mouse cursor
+            ShowCursor(FALSE);
+
+            // Set new GWL_STYLE
+            return SetWindowLongA_sh.stdcall<LONG>(hWnd, GWL_STYLE, dwNewLong);
+        }
+    }
+
+    // Call the original function
+    return SetWindowLongA_sh.stdcall<LONG>(hWnd, nIndex, dwNewLong);
+}
+
+void WindowManagement()
+{
+    // Hook SetWindowLongA
+    HMODULE user32Module = GetModuleHandleW(L"user32.dll");
+    if (user32Module) {
+        FARPROC SetWindowLongA_fn = GetProcAddress(user32Module, "SetWindowLongA");
+        if (SetWindowLongA_fn) {
+            SetWindowLongA_sh = safetyhook::create_inline(SetWindowLongA_fn, reinterpret_cast<void*>(SetWindowLongA_hk));
+            spdlog::info("Game Window: Hooked SetWindowLongA.");
+        }
+        else {
+            spdlog::error("Game Window: Failed to get function address for SetWindowLongA.");
+        }
+    }
+    else {
+        spdlog::error("Game Window: Failed to get module handle for user32.dll.");
+    }
+}
+
 void Resolution()
 {
     if (bCustomRes) {
@@ -813,70 +878,8 @@ void Framerate()
     }
 }
 
-WNDPROC OldWndProc;
-LRESULT __stdcall NewWndProc(HWND window, UINT message_type, WPARAM w_param, LPARAM l_param) {
-    switch (message_type) {
-    case WM_CLOSE:
-        // No exit/ALT+F4 handler bullshit.
-        return DefWindowProc(window, message_type, w_param, l_param);
-    }
-
-    return CallWindowProc(OldWndProc, window, message_type, w_param, l_param);
-};
-
-SafetyHookInline SetWindowLongA_sh{};
-LONG WINAPI SetWindowLongA_hk(HWND hWnd, int nIndex, LONG dwNewLong) {    
-    // Get window class name
-    char sClassName[256] = { 0 };
-    GetClassNameA(hWnd, sClassName, sizeof(sClassName));
-
-    // Only modify game class
-    if (std::string(sClassName) == std::string(sWindowClassName)) {
-        // Set new wnd proc to kill alt+f4 handler
-        if (OldWndProc == nullptr)
-            OldWndProc = (WNDPROC)SetWindowLongPtr(hWnd, GWLP_WNDPROC, (LONG_PTR)NewWndProc);
-
-        if (nIndex == GWL_STYLE && bBorderlessMode) {
-            // Modify GWL_STYLE
-            dwNewLong &= ~(WS_CAPTION | WS_THICKFRAME | WS_MINIMIZE | WS_MAXIMIZE | WS_SYSMENU);
-
-            // Modify GW_EXSTYLE
-            LONG dwExStyle = GetWindowLongA(hWnd, GWL_EXSTYLE);
-            dwExStyle &= ~(WS_EX_DLGMODALFRAME | WS_EX_CLIENTEDGE | WS_EX_WINDOWEDGE);
-            SetWindowLongA_sh.stdcall<LONG>(hWnd, GWL_EXSTYLE, dwExStyle);
-
-            spdlog::info("Game Window: SetWindowLongA: Applied borderless styles.");
-
-            // Hide the mouse cursor
-            ShowCursor(FALSE);
-
-            // Set new GWL_STYLE
-            return SetWindowLongA_sh.stdcall<LONG>(hWnd, GWL_STYLE, dwNewLong);
-        }
-    }
-
-    // Call the original function
-    return SetWindowLongA_sh.stdcall<LONG>(hWnd, nIndex, dwNewLong);
-}
-
 void Misc()
 {
-    // Hook SetWindowLongA to apply borderless style
-    HMODULE user32Module = GetModuleHandleW(L"user32.dll");
-    if (user32Module) {
-        FARPROC SetWindowLongA_fn = GetProcAddress(user32Module, "SetWindowLongA");
-        if (SetWindowLongA_fn) {
-            SetWindowLongA_sh = safetyhook::create_inline(SetWindowLongA_fn, reinterpret_cast<void*>(SetWindowLongA_hk));
-            spdlog::info("Game Window: Hooked SetWindowLongA.");
-        }
-        else {
-            spdlog::error("Game Window: Failed to get function address for SetWindowLongA.");
-        }
-    }
-    else {
-        spdlog::error("Game Window: Failed to get module handle for user32.dll.");
-    }
-
     // Disable Windows 7 compatibility message on startup
     uint8_t* WindowsCompatibilityMessageScanResult = Memory::PatternScan(baseModule, "85 ?? 0F 84 ?? ?? ?? ?? 83 3D ?? ?? ?? ?? 00 75 ?? 48 ?? ?? ?? ?? ?? ?? 33 ??");
     if (WindowsCompatibilityMessageScanResult) {
@@ -918,6 +921,7 @@ DWORD __stdcall Main(void*)
 {
     Logging();
     Configuration();
+    WindowManagement;
     Resolution();
     AspectFOV();
     HUD();
