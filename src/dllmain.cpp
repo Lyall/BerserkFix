@@ -31,6 +31,7 @@ int iCustomResX = 1280;
 int iCustomResY = 720;
 bool bBorderlessMode;
 bool bWindowedMode;
+bool bFixFOV;
 bool bFixAspect;
 bool bFixHUD;
 float fFramerateCap;
@@ -206,6 +207,9 @@ void Configuration()
     spdlog::info("Config Parse: iCustomResY: {}", iCustomResY);
     spdlog::info("Config Parse: bWindowedMode: {}", bWindowedMode);
     spdlog::info("Config Parse: bBorderlessMode: {}", bBorderlessMode);
+
+    inipp::get_value(ini.sections["Fix FOV"], "Enabled", bFixFOV);
+    spdlog::info("Config Parse: bFixFOV: {}", bFixFOV);
 
     inipp::get_value(ini.sections["Fix Aspect Ratio"], "Enabled", bFixAspect);
     spdlog::info("Config Parse: bFixAspect: {}", bFixAspect);
@@ -444,6 +448,22 @@ void AspectFOV()
         }
     }
 
+    if (bFixFOV) {
+        uint8_t* GlobalFOVScanResult = Memory::PatternScan(baseModule, "0F ?? ?? ?? ?? D1 ?? 44 0F ?? ?? ?? ?? F3 0F ?? ?? ?? ?? ?? ?? A8 01");
+        if (GlobalFOVScanResult) {
+            spdlog::info("FOV: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)GlobalFOVScanResult - (uintptr_t)baseModule);
+            static SafetyHookMid GlobalFOVMidHook{};
+            GlobalFOVMidHook = safetyhook::create_mid(GlobalFOVScanResult,
+                [](SafetyHookContext& ctx) {
+                    if (fAspectRatio < fNativeAspect)
+                        ctx.xmm0.f32[0] = 2.00f * atanf(tanf(ctx.xmm0.f32[0] / 2.00f) * (fNativeAspect / fAspectRatio));
+                });
+        }
+        else if (!GlobalFOVScanResult) {
+            spdlog::error("FOV: Pattern scan failed.");
+        }
+    }
+
     if (fGameplayFOVMulti != 1.00f) {
         // Gameplay FOV
         uint8_t* GameplayFOVScanResult = Memory::PatternScan(baseModule, "F3 0F ?? ?? ?? ?? ?? ?? E8 ?? ?? ?? ?? 48 ?? ?? F3 0F ?? ?? ?? ?? ?? ?? E8 ?? ?? ?? ?? 48 ?? ??");
@@ -664,7 +684,7 @@ void HUD()
                     }
                 });
 
-            spdlog::info("HUD: ission Select Screen: Background: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)MissionSelectBGScanResult - (uintptr_t)baseModule);
+            spdlog::info("HUD: Mission Select Screen: Background: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)MissionSelectBGScanResult - (uintptr_t)baseModule);
             static SafetyHookMid MissionSelectBGMidHook{};
             MissionSelectBGMidHook = safetyhook::create_mid(MissionSelectBGScanResult,
                 [](SafetyHookContext& ctx) {
