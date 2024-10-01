@@ -2,7 +2,7 @@
 [![Patreon-Button](https://github.com/user-attachments/assets/56f4da45-0ed0-4210-a4a7-c381612370db)](https://www.patreon.com/Wintermance) [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/W7W01UAI9) <br />
 [![Github All Releases](https://img.shields.io/github/downloads/Lyall/BerserkFix/total.svg)](https://github.com/Lyall/BerserkFix/releases)
 
-This is a fix for BERSERK: Band of the Hawk that adds ultrawide/narrower support and more.
+This is a fix for BERSERK: Band of the Hawk that adds ultrawide/narrower support, unlocked framerate and much more.
 
 ## Features
 
@@ -34,9 +34,8 @@ This is a fix for BERSERK: Band of the Hawk that adds ultrawide/narrower support
 Please report any issues you see.
 This list will contain bugs which may or may not be fixed.
 
-- Some movies may show visual glitches near the beginning.
-- Enemy nameplates are stretched at non-16:9 resolutions.
-- Adjusting the framerate cap can cause bugs. Some UI speeds up, for example.
+- Some movies may show visual glitches near the beginning at non-16:9 resolutions.
+- Adjusting the framerate cap can cause minor visual bugs. Some UI animations speeds up, for example.
 
 ## Screenshots
 | ![ezgif-4-c1525c200a](https://github.com/user-attachments/assets/57ad687c-28d1-445e-8176-c37f0b3175b5) |
