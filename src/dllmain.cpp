@@ -51,7 +51,6 @@ float fHUDHeightOffset;
 int iCurrentResX;
 int iCurrentResY;
 float fCurrentFrametime = 0.0166666f;
-LPCSTR sWindowClassName = "BERSERK_WIN_EU_NA";
 
 void CalculateAspectRatio(bool bLog)
 {
@@ -267,6 +266,7 @@ LONG WINAPI SetWindowLongA_hk(HWND hWnd, int nIndex, LONG dwNewLong) {
     // Get window class name
     char sClassName[256] = { 0 };
     GetClassNameA(hWnd, sClassName, sizeof(sClassName));
+    const std::string sWindowClassName = "BERSERK_WIN_EU_NA";
 
     // Only modify game class
     if (std::string(sClassName) == std::string(sWindowClassName)) {
@@ -686,7 +686,8 @@ void HUD()
         uint8_t* HUDBackgrounds3ScanResult = Memory::PatternScan(baseModule, "48 8B ?? ?? 48 89 ?? ?? 48 89 ?? ?? 48 89 ?? ?? 83 ?? ?? ?? ?? ?? 00 74 ??");
         uint8_t* HUDBackgrounds4ScanResult = Memory::PatternScan(baseModule, "48 ?? ?? ?? 89 ?? ?? 44 0F ?? ?? ?? ?? 48 ?? ?? ?? 48 ?? ?? ?? 48 ?? ?? ?? 48 ?? ?? ??");
         uint8_t* HUDBackgrounds5ScanResult = Memory::PatternScan(baseModule, "F3 0F ?? ?? ?? ?? 85 ?? 74 ?? FF ?? 74 ?? FF ?? 75 ??");
-        if (HUDBackgrounds1ScanResult && HUDBackgrounds2ScanResult && HUDBackgrounds3ScanResult && HUDBackgrounds4ScanResult && HUDBackgrounds5ScanResult) {
+        uint8_t* HUDBackgrounds6ScanResult = Memory::PatternScan(baseModule, "F3 41 ?? ?? ?? ?? F3 45 ?? ?? ?? ?? 85 ?? 74 ?? 83 ?? 0F"); 
+        if (HUDBackgrounds1ScanResult && HUDBackgrounds2ScanResult && HUDBackgrounds3ScanResult && HUDBackgrounds4ScanResult && HUDBackgrounds5ScanResult && HUDBackgrounds6ScanResult) {
             spdlog::info("HUD: Backgrounds: Other 1: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)HUDBackgrounds1ScanResult - (uintptr_t)baseModule);
             static SafetyHookMid HUDBackgrounds1MidHook{};
             HUDBackgrounds1MidHook = safetyhook::create_mid(HUDBackgrounds1ScanResult,
@@ -776,8 +777,26 @@ void HUD()
                         }
                     }
                 });
+
+            spdlog::info("HUD: Backgrounds: Other 6: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)HUDBackgrounds6ScanResult - (uintptr_t)baseModule);
+            static SafetyHookMid HUDBackgrounds6MidHook{};
+            HUDBackgrounds6MidHook = safetyhook::create_mid(HUDBackgrounds6ScanResult,
+                [](SafetyHookContext& ctx) {
+                    if (ctx.r8 + 0x30) {
+                        if (fAspectRatio > fNativeAspect) {
+                            float fWidthOffset = ((1080.00f * fAspectRatio) - 1920.00f) / 2.00f;
+                            *reinterpret_cast<float*>(ctx.r8 + 0x28) = 1080.00f * fAspectRatio;
+                            *reinterpret_cast<float*>(ctx.r8 + 0x20) = -fWidthOffset;
+                        }
+                        else if (fAspectRatio < fNativeAspect) {
+                            float fHeightOffset = ((1920.00f / fAspectRatio) - 1080.00f) / 2.00f;
+                            *reinterpret_cast<float*>(ctx.r8 + 0x2C) = 1920.00f / fAspectRatio;
+                            *reinterpret_cast<float*>(ctx.r8 + 0x24) = -fHeightOffset;
+                        }
+                    }
+                });
         }
-        else if (!HUDBackgrounds1ScanResult || !HUDBackgrounds2ScanResult || !HUDBackgrounds3ScanResult || !HUDBackgrounds4ScanResult || !HUDBackgrounds5ScanResult) {
+        else if (!HUDBackgrounds1ScanResult || !HUDBackgrounds2ScanResult || !HUDBackgrounds3ScanResult || !HUDBackgrounds4ScanResult || !HUDBackgrounds5ScanResult || !HUDBackgrounds6ScanResult) {
             spdlog::error("HUD: Backgrounds: Pattern scan(s) failed.");
         }
     }   
@@ -906,7 +925,6 @@ void Misc()
                         ctx.rax = iShadowResolution;
                         ctx.rdx = iShadowResolution;
                     }
-
                 });
         }
         else if (!ShadowQualityScanResult) {
@@ -938,11 +956,9 @@ BOOL APIENTRY DllMain(HMODULE hModule,
     case DLL_PROCESS_ATTACH:
     {
         thisModule = hModule;
-        HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, CREATE_SUSPENDED, 0);
+        HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
         if (mainHandle)
         {
-            SetThreadPriority(mainHandle, THREAD_PRIORITY_TIME_CRITICAL);
-            ResumeThread(mainHandle);
             CloseHandle(mainHandle);
         }
         break;
