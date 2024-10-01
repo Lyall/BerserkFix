@@ -34,7 +34,7 @@ bool bWindowedMode;
 bool bFixAspect;
 bool bFixHUD;
 float fFramerateCap;
-float fAdditionalFOV;
+float fGameplayFOVMulti;
 int iShadowResolution;
 
 // Aspect ratio + HUD stuff
@@ -214,12 +214,12 @@ void Configuration()
     inipp::get_value(ini.sections["Fix HUD"], "Enabled", bFixHUD);
     spdlog::info("Config Parse: bFixHUD: {}", bFixHUD);
 
-    inipp::get_value(ini.sections["Gameplay FOV"], "AdditionalFOV", fAdditionalFOV);
-    if ((float)fAdditionalFOV < -20.00f || (float)fAdditionalFOV > 120.00f) {
-        fAdditionalFOV = std::clamp((float)fAdditionalFOV, -20.00f, 120.00f);
-        spdlog::warn("Config Parse: fAdditionalFOV value invalid, clamped to {}", fAdditionalFOV);
+    inipp::get_value(ini.sections["Gameplay FOV"], "AdditionalFOV", fGameplayFOVMulti);
+    if ((float)fGameplayFOVMulti < 0.10f || (float)fGameplayFOVMulti > 3.00f) {
+        fGameplayFOVMulti = std::clamp((float)fGameplayFOVMulti, 0.10f, 3.00f);
+        spdlog::warn("Config Parse: fGameplayFOVMulti value invalid, clamped to {}", fGameplayFOVMulti);
     }
-    spdlog::info("Config Parse: fAdditionalFOV: {}", fAdditionalFOV);
+    spdlog::info("Config Parse: fGameplayFOVMulti: {}", fGameplayFOVMulti);
 
     inipp::get_value(ini.sections["Framerate Cap"], "Framerate", fFramerateCap);
     if ((float)fFramerateCap < 10.00f || (float)fFramerateCap > 500.00f) {
@@ -381,7 +381,7 @@ void AspectFOV()
         }
     }
 
-    if (fAdditionalFOV != 0.00f) {
+    if (fGameplayFOVMulti != 1.00f) {
         // Gameplay FOV
         uint8_t* GameplayFOVScanResult = Memory::PatternScan(baseModule, "F3 0F ?? ?? ?? ?? ?? ?? E8 ?? ?? ?? ?? 48 ?? ?? F3 0F ?? ?? ?? ?? ?? ?? E8 ?? ?? ?? ?? 48 ?? ??");
         if (GameplayFOVScanResult) {
@@ -389,10 +389,7 @@ void AspectFOV()
             static SafetyHookMid AspectRatioMidHook{};
             AspectRatioMidHook = safetyhook::create_mid(GameplayFOVScanResult,
                 [](SafetyHookContext& ctx) {
-                    float fovRad = ctx.xmm0.f32[0];             // Get fov in radians
-                    float fovDeg = fovRad * (180.00f / fPi);    // Convert to degrees
-                    fovDeg += fAdditionalFOV;                   // Add additional FOV in degrees.                   
-                    ctx.xmm0.f32[0] = fovDeg * (fPi / 180.00f); // Back to radians
+                    ctx.xmm0.f32[0] *= fGameplayFOVMulti;
                 });
         }
         else if (!GameplayFOVScanResult) {
