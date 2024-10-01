@@ -1,8 +1,8 @@
-# BERSERK: Band of the Hawk Fix
+# Berserk and the Band of the Hawk Fix
 [![Patreon-Button](https://github.com/user-attachments/assets/56f4da45-0ed0-4210-a4a7-c381612370db)](https://www.patreon.com/Wintermance) [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/W7W01UAI9) <br />
 [![Github All Releases](https://img.shields.io/github/downloads/Lyall/BerserkFix/total.svg)](https://github.com/Lyall/BerserkFix/releases)
 
-This is a fix for BERSERK: Band of the Hawk that adds ultrawide/narrower support, unlocked framerate and much more.
+This is a fix for Berserk and the Band of the Hawk that adds ultrawide/narrower support, unlocked framerate and much more.
 
 ## Features
 
